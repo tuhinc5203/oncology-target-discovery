@@ -23,8 +23,7 @@ The project will use only public data and public-domain reasoning. It will not i
 - [x] Create the project repository.
 - [x] Choose TNBC as the cancer focus.
 - [x] Record the TNBC rationale.
-- [ ] Register for DepMap access.
-- [ ] Download the current Chronos gene-effect and cell-line metadata files.
+- [ ] Download the current Chronos gene-effect and cell-line metadata files (no account needed — public download).
 - [ ] Inspect the DepMap files and record their release/version.
 
 **Week 0 outcome:** The biological question is defined: which genes are selectively important in TNBC and plausible as therapeutic targets?
@@ -96,6 +95,6 @@ Add dated notes here as the project develops:
 - **Next action:** Register for DepMap Portal access and download the current release's CRISPR gene-effect (Chronos) and cell-line metadata files — this step needs to happen in your browser (see open item below).
 
 - **Date:** 2026-09-13
-- **Decision or result:** Checked whether DepMap files could be fetched programmatically. The DepMap portal now sits behind a Cloudflare bot-verification/login gate (confirmed via direct API request to `/portal/api/download/files`, which returned a verification page, not data). As of the 25Q2 release, DepMap also no longer bulk-publishes to Figshare; the two supported paths are: (1) the portal's "Custom Downloads" tab, or (2) fetching `https://depmap.org/portal/api/download/files` from a logged-in browser session to get a CSV of signed, time-limited download URLs.
-- **Why it matters:** This step cannot be automated from here — it requires your own DepMap account and browser session.
-- **Next action:** You need to: (1) create/log into a DepMap Portal account at depmap.org/portal if you haven't already, (2) go to the Data page for the current public release, (3) download `CRISPRGeneEffect.csv` (Chronos scores) and the cell line metadata file (`Model.csv`), and (4) drop them into `data/raw/depmap/`. Tell me once they're there and I'll inspect the schema and record the release version.
+- **Decision or result:** Checked whether DepMap files could be fetched programmatically from this environment. A direct API request to `/portal/api/download/files` returned a Cloudflare bot-verification page, not data. Initially assumed this meant an account/login was required — that was wrong. DepMap's public data (including Chronos CRISPR scores and cell line metadata) requires no account at all; the bot-check is passed automatically by a normal browser. As of the 25Q2 release, DepMap no longer bulk-publishes to Figshare, so files are pulled from the portal's "All Data" / "Custom Downloads" tab directly.
+- **Why it matters:** No registration step needed — this just requires downloading in a normal browser, no account creation.
+- **Next action:** Go to depmap.org/portal/download/, confirm the current public release name, download `Model.csv` (cell line metadata) and `CRISPRGeneEffect.csv` (Chronos scores), and drop them into `data/raw/depmap/`. Tell me once they're there and I'll inspect the schema and record the release version.

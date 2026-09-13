@@ -29,8 +29,8 @@ This file is internal working context for the coding assistant. Keep it concise,
 - Week 0 TNBC decision is complete.
 - Documentation has been created and validated.
 - Python environment, Jupyter kernel, and git repository are set up (2026-09-13).
-- Data acquisition has not started. Blocked on the user: the DepMap portal now sits behind a Cloudflare bot-verification/login gate, so files cannot be fetched programmatically from this environment (confirmed by a direct request to `/portal/api/download/files`, which returned a verification page). The user needs to log into DepMap in their own browser and download `CRISPRGeneEffect.csv` + `Model.csv` into `data/raw/depmap/`.
-- As of the 25Q2 release, DepMap no longer bulk-publishes to Figshare. Supported download paths are the portal's "Custom Downloads" tab, or fetching `https://depmap.org/portal/api/download/files` from a logged-in browser session for a CSV of signed download URLs.
+- Data acquisition has not started. Blocked on the user, but only for browser access, not an account: DepMap's public data (Chronos CRISPR scores, cell line metadata) requires no registration/login — a direct API request from this environment hit a Cloudflare bot-check page, which a normal browser passes automatically. There is no sign-up flow to look for. The user needs to download `CRISPRGeneEffect.csv` + `Model.csv` from depmap.org/portal/download/ (or the "All Data"/"Custom Downloads" tab) into `data/raw/depmap/`.
+- As of the 25Q2 release, DepMap no longer bulk-publishes to Figshare; files come from the portal's download tabs directly.
 - No technical assumptions about exact DepMap release, TCGA subtype field, or TNBC cell-line mapping have been confirmed yet.
 
 ## Resume procedure
