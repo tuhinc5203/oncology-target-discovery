@@ -19,8 +19,8 @@ The project will use only public data and public-domain reasoning. It will not i
 
 ## Week 0: Setup and scope
 
-- [ ] Set up the Python environment and Jupyter kernel.
-- [ ] Create the project repository.
+- [x] Set up the Python environment and Jupyter kernel.
+- [x] Create the project repository.
 - [x] Choose TNBC as the cancer focus.
 - [x] Record the TNBC rationale.
 - [ ] Register for DepMap access.
@@ -89,3 +89,13 @@ Add dated notes here as the project develops:
 - **Decision or result:**
 - **Why it matters:**
 - **Next action:**
+
+- **Date:** 2026-09-13
+- **Decision or result:** Created the `target-discovery` conda environment (Python 3.10) with pandas, numpy, scipy, matplotlib, seaborn, lifelines, and jupyter/ipykernel; registered the Jupyter kernel. Initialized the local git repository (`main` branch) with a `.gitignore`, `environment.yml`, and a `data/raw/` vs `data/processed/` folder layout (`data/raw/{depmap,tcga,gtex,hpa}`, plus `notebooks/` and `src/`). First commit made.
+- **Why it matters:** Completes the environment and repository setup items from the Week 0 checklist so analysis code has somewhere reproducible to live.
+- **Next action:** Register for DepMap Portal access and download the current release's CRISPR gene-effect (Chronos) and cell-line metadata files — this step needs to happen in your browser (see open item below).
+
+- **Date:** 2026-09-13
+- **Decision or result:** Checked whether DepMap files could be fetched programmatically. The DepMap portal now sits behind a Cloudflare bot-verification/login gate (confirmed via direct API request to `/portal/api/download/files`, which returned a verification page, not data). As of the 25Q2 release, DepMap also no longer bulk-publishes to Figshare; the two supported paths are: (1) the portal's "Custom Downloads" tab, or (2) fetching `https://depmap.org/portal/api/download/files` from a logged-in browser session to get a CSV of signed, time-limited download URLs.
+- **Why it matters:** This step cannot be automated from here — it requires your own DepMap account and browser session.
+- **Next action:** You need to: (1) create/log into a DepMap Portal account at depmap.org/portal if you haven't already, (2) go to the Data page for the current public release, (3) download `CRISPRGeneEffect.csv` (Chronos scores) and the cell line metadata file (`Model.csv`), and (4) drop them into `data/raw/depmap/`. Tell me once they're there and I'll inspect the schema and record the release version.

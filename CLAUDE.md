@@ -5,9 +5,11 @@ This file is internal working context for the coding assistant. Keep it concise,
 ## Workspace state
 
 - Workspace: `oncology-target-discovery`
-- Current artifacts: `oncology-target-discovery-project-plan.md`, `NOTES.md`, `CLAUDE.md`
-- No source code, notebooks, datasets, environment file, or Git repository exists yet.
-- The terminal's Git commands fail because this directory is not currently a Git repository.
+- Current artifacts: `oncology-target-discovery-project-plan.md`, `NOTES.md`, `CLAUDE.md`, `environment.yml`, `.gitignore`
+- Git repository initialized (branch `main`, first commit made 2026-09-13). Safe to use normal git commands now.
+- Local conda environment `target-discovery` (Python 3.10) created with pandas, numpy, scipy, matplotlib, seaborn, lifelines, jupyter, ipykernel. Jupyter kernel registered as "Python (target-discovery)". Exact versions pinned in `environment.yml`.
+- Directory layout: `data/raw/{depmap,tcga,gtex,hpa}/` (untracked except `.gitkeep`, for original downloads), `data/processed/` (untracked except `.gitkeep`, for cleaned/intermediate data), `notebooks/`, `src/` — all currently empty scaffolding.
+- No datasets downloaded yet.
 
 ## User-facing source of truth
 
@@ -24,9 +26,11 @@ This file is internal working context for the coding assistant. Keep it concise,
 
 ## Current implementation state
 
-- Week 0 decision is complete.
+- Week 0 TNBC decision is complete.
 - Documentation has been created and validated.
-- Data acquisition has not started.
+- Python environment, Jupyter kernel, and git repository are set up (2026-09-13).
+- Data acquisition has not started. Blocked on the user: the DepMap portal now sits behind a Cloudflare bot-verification/login gate, so files cannot be fetched programmatically from this environment (confirmed by a direct request to `/portal/api/download/files`, which returned a verification page). The user needs to log into DepMap in their own browser and download `CRISPRGeneEffect.csv` + `Model.csv` into `data/raw/depmap/`.
+- As of the 25Q2 release, DepMap no longer bulk-publishes to Figshare. Supported download paths are the portal's "Custom Downloads" tab, or fetching `https://depmap.org/portal/api/download/files` from a logged-in browser session for a CSV of signed download URLs.
 - No technical assumptions about exact DepMap release, TCGA subtype field, or TNBC cell-line mapping have been confirmed yet.
 
 ## Resume procedure
