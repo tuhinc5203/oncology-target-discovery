@@ -5,11 +5,14 @@ This file is internal working context for the coding assistant. Keep it concise,
 ## Workspace state
 
 - Workspace: `oncology-target-discovery`
-- Current artifacts: `oncology-target-discovery-project-plan.md`, `NOTES.md`, `CLAUDE.md`, `environment.yml`, `.gitignore`
-- Git repository initialized (branch `main`, first commit made 2026-09-13). Safe to use normal git commands now.
+- Current artifacts: `oncology-target-discovery-project-plan.md`, `NOTES.md`, `CLAUDE.md`, `environment.yml`, `.gitignore`, `src/data_utils.py`, `scripts/download_tcga.py`, `scripts/download_gtex.py`.
+- Git repository initialized (branch `main`) and pushed to `https://github.com/tuhinc5203/oncology-target-discovery` (`origin/main` tracked). Safe to use normal git commands, including push.
 - Local conda environment `target-discovery` (Python 3.10) created with pandas, numpy, scipy, matplotlib, seaborn, lifelines, jupyter, ipykernel. Jupyter kernel registered as "Python (target-discovery)". Exact versions pinned in `environment.yml`.
-- Directory layout: `data/raw/{depmap,tcga,gtex,hpa}/` (untracked except `.gitkeep`, for original downloads), `data/processed/` (untracked except `.gitkeep`, for cleaned/intermediate data), `notebooks/`, `src/`.
-- `data/raw/depmap/` populated (2026-09-13): `Model Data.csv` (2,154 rows × 49 cols) and `CRISPR Gene Effect.csv` (1,208 cell lines × ~18,531 genes), DepMap Public **26Q1** release. TCGA/GTEx/HPA not downloaded yet.
+- Directory layout: `data/raw/{depmap,tcga,gtex,hpa}/` (untracked except `.gitkeep`, for original downloads), `data/processed/` (untracked except `.gitkeep`, for cleaned/intermediate data), `notebooks/`, `src/`, `scripts/`.
+- `data/raw/depmap/` populated: `Model Data.csv` (2,154 × 49) and `CRISPR Gene Effect.csv` (1,208 cell lines × ~18,531 genes), DepMap Public **26Q1**.
+- `data/raw/tcga/` populated: `BRCA.rnaseqv2_RSEM_genes_normalized.data.txt` (20,531 genes × 1,212 samples), `All_CDEs.txt` (131 attrs × 1,097 patients, has ER/PR/HER2 IHC/FISH status), `BRCA.clin.merged.picked.txt` (survival fields). Source: GDAC Firehose `stddata__2016_01_28` BRCA run. Downloaded via `scripts/download_tcga.py` (verified byte-identical on a fresh run — no bot-check on this host, unlike DepMap).
+- `data/raw/gtex/` populated: `GTEx_Analysis_v11_gene_median_tpm.gct.gz` (74,628 genes × 68 tissues), GTEx **v11**. Downloaded via `scripts/download_gtex.py` (public GCS bucket, no auth).
+- HPA not downloaded yet (optional, Week 3).
 
 ## User-facing source of truth
 
@@ -29,8 +32,11 @@ This file is internal working context for the coding assistant. Keep it concise,
 - Week 0 is complete: TNBC decision recorded, environment/kernel/git set up, DepMap files downloaded and inspected (26Q1 release — see below).
 - DepMap's public data (Chronos CRISPR scores, cell line metadata) requires no account; downloaded directly from the portal's "All Data"/"Custom Downloads" tabs (no longer bulk-published to Figshare as of 25Q2).
 - **DepMap TNBC cell-line mapping resolved:** `Model Data.csv`'s `ModelSubtypeFeatures` column directly labels molecular subtype (e.g. `basal_A TNBC`, `luminal TNBC`, `TNBC`) for most `OncotreeLineage == "Breast"` rows. Filtering for substring `"TNBC"` gives 34 of 96 breast cell lines; 25 of those have CRISPR data in `CRISPR Gene Effect.csv`. 15 breast lines have no `ModelSubtypeFeatures` value — treat as unknown, exclude from both TNBC and non-TNBC comparison groups, don't default them to "non-TNBC." No manual receptor-status mapping needed. Full reasoning in `NOTES.md`'s "Defining the TNBC cell-line set" section.
-- Week 1 not started: DepMap gene-effect matrix not yet loaded/cleaned in code, TCGA-BRCA and GTEx not yet downloaded, TCGA subtype field/inclusion rule still undecided.
+- **TCGA-BRCA TNBC patient mapping resolved:** `data_utils.get_tnbc_patient_barcodes()` combines `breast_carcinoma_estrogen_receptor_status`, `..._progesterone_receptor_status`, and HER2 IHC (`lab_proc_her2_neu_immunohistochemistry_receptor_status`) + FISH (`lab_procedure_her2_neu_in_situ_hybrid_outcome_type`) from `All_CDEs.txt`. HER2-negative = IHC negative, OR IHC equivocal with FISH negative (ASCO/CAP reflex rule). TNBC = ER-neg AND PR-neg AND HER2-neg; missing/indeterminate on any marker excludes the patient from both groups. Result: 143/1,097 patients (13%, matches expected clinical prevalence), 142 with matched tumor expression data. Full reasoning in `NOTES.md`'s "Defining TCGA-BRCA's TNBC patient set" section.
+- **`src/data_utils.py` now has loaders for all 3 downloaded sources:** `load_model_metadata`/`load_gene_effect`/`get_tnbc_model_ids` (DepMap), `load_tcga_expression`/`load_tcga_clinical_cdes`/`get_tnbc_patient_barcodes`/`tcga_patient_barcode`/`tcga_is_tumor_sample` (TCGA), `load_gtex_median_tpm` (GTEx). All verified against the real files.
+- Week 1 remaining: no EDA notebook yet (missingness/distributions not yet checked for TCGA/GTEx — only DepMap's was, back in Week 0 prep). TCGA matched-normal-vs-GTEx-baseline decision still open.
 - **Local dev gotcha:** `conda activate target-discovery` doesn't reliably win the `PATH` race against Homebrew's system Python in this shell — call the env's Python by full path (`/Applications/miniconda3/envs/target-discovery/bin/python3`) to avoid silently running without the installed packages.
+- **Bot-check pattern, confirmed twice now:** DepMap's portal blocks automated requests (Cloudflare) even though no login is actually required. TCGA/GTEx don't have this — GDAC Firehose and GTEx's GCS bucket are plain public HTTP with no bot-check, so those two are scripted (`scripts/download_tcga.py`, `scripts/download_gtex.py`), while DepMap stays a manual step. Don't assume a data portal is blocked just because DepMap was — test each one directly (`curl`/`WebFetch`) before concluding it needs the user's browser.
 
 ## Resume procedure
 
@@ -52,11 +58,13 @@ This file is internal working context for the coding assistant. Keep it concise,
 
 ## Open decisions
 
-- TCGA-BRCA subtype field and the operational TNBC inclusion rule.
-- Whether matched TCGA normal samples are sufficient or GTEx is the primary normal baseline.
+- Whether matched TCGA normal samples (only ~119 of 1,212 samples aren't primary-tumor-coded) are sufficient or GTEx is the primary normal baseline for Week 3's safety filtering.
 - Statistical test, effect-size definition, and composite-score weights.
 
 ## Resolved decisions
 
 - **DepMap release:** Public 26Q1 (`Model Data.csv`, `CRISPR Gene Effect.csv`).
 - **DepMap TNBC cell-line mapping:** substring match on `ModelSubtypeFeatures` containing `"TNBC"`, among `OncotreeLineage == "Breast"` rows. 34 lines match; 25 have CRISPR data.
+- **TCGA-BRCA run:** GDAC Firehose `stddata__2016_01_28` (BRCA) — same source as cBioPortal's `brca_tcga` study.
+- **TCGA-BRCA TNBC patient mapping:** ER-neg AND PR-neg AND combined-HER2-neg (IHC negative, or IHC equivocal + FISH negative), via `get_tnbc_patient_barcodes()`. 143/1,097 patients; 142 with expression data.
+- **GTEx release:** v11 (`GTEx_Analysis_v11_gene_median_tpm.gct.gz`, 74,628 genes × 68 tissues).

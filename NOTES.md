@@ -60,7 +60,37 @@ It turns out `Model Data.csv` already carries this directly. Filtering to `Oncot
 A few caveats to carry into Week 1/2 rather than gloss over:
 - **15 of the 96 breast lines have no `ModelSubtypeFeatures` value at all** (missing, not "confirmed not TNBC"). These should stay excluded from *both* the TNBC group and the "confirmed non-TNBC" comparison group, rather than being silently counted as non-TNBC just because they lack the label.
 - **The `basal_A`/`basal_B`/`luminal` prefixes** on some TNBC entries reflect a finer intrinsic-subtype scheme layered on top of receptor-status TNBC. For now the plan is to treat every `*TNBC` label as one group, since the project's question is about TNBC as a whole — but if a later finding looks like it's really only true of one basal/luminal-TNBC subgroup, that's worth calling out explicitly rather than reporting it as a TNBC-wide result.
-- This resolves the DepMap half of the cell-line-mapping open decision. The equivalent decision for TCGA-BRCA (which subtype field to use, and the exact inclusion rule) is still open, and will need the same "check the real column before assuming" approach once the clinical file is downloaded.
+- This resolves the DepMap half of the cell-line-mapping open decision. The equivalent decision for TCGA-BRCA (which subtype field to use, and the exact inclusion rule) is resolved below.
+
+### Reproducible downloads: TCGA and GTEx, unlike DepMap, can be scripted
+
+DepMap's download needed a real browser (see above). TCGA-BRCA and GTEx turned out not to: both are served from plain public hosts with no bot-check, so their downloads are captured as real scripts — `scripts/download_tcga.py` and `scripts/download_gtex.py` — rather than one-off manual steps. Verified reproducible directly: re-ran `download_tcga.py` into a scratch directory and diffed the result against the files already in `data/raw/tcga/` — byte-identical.
+
+- **GTEx v11** comes straight from its public Google Cloud Storage bucket (`storage.googleapis.com/adult-gtex/...`), no auth of any kind.
+- **TCGA-BRCA** comes from the Broad Institute's GDAC Firehose archive (`stddata__2016_01_28` run for BRCA) — the same underlying data cBioPortal's `brca_tcga` ("TCGA, Firehose Legacy") study is built from, just fetched as flat files instead of through cBioPortal's paginated REST API (which would have needed thousands of small requests to pull a whole-genome expression matrix).
+
+### GTEx release: v11
+
+Downloaded `GTEx_Analysis_v11_gene_median_tpm.gct.gz` — median TPM per gene per tissue, **74,628 genes × 68 tissues**. This is GTEx's current release (August 2025 GENCODE 47 annotation update over v10; no new samples/donors versus v10). Recording the exact version matters for the same reason as DepMap's release: GTEx's gene annotation and tissue groupings have changed across versions (v8's 54 tissues vs. v11's 68, from finer tissue-site splitting), so a safety-flag result should be tied to "v11", not "GTEx" in general.
+
+### Defining TCGA-BRCA's TNBC patient set: real IHC/FISH receptor status, not just a molecular-subtype label
+
+TNBC is clinically defined by receptor status — ER-negative, PR-negative, and HER2-negative — not by a PAM50-style molecular subtype label. The widely-used cBioPortal PanCancer Atlas BRCA study (`brca_tcga_pan_can_atlas_2018`) only carries a coarse `SUBTYPE` field (PAM50-derived, e.g. "Basal-like"), which is a common proxy for TNBC in the literature but isn't the actual clinical definition. The Broad Firehose archive's full clinical CDE table (`All_CDEs.txt`, same underlying source as cBioPortal's older `brca_tcga` study) carries the real pathology fields instead:
+
+- `breast_carcinoma_estrogen_receptor_status`
+- `breast_carcinoma_progesterone_receptor_status`
+- `lab_proc_her2_neu_immunohistochemistry_receptor_status` (HER2 IHC score)
+- `lab_procedure_her2_neu_in_situ_hybrid_outcome_type` (HER2 FISH/ISH result)
+
+HER2 needs its IHC and FISH results combined, not read from either field alone, because of how HER2 testing actually works clinically: IHC 0/1+ is called negative outright, IHC 3+ is called positive outright, but IHC 2+ ("equivocal") requires a reflex FISH test to resolve — a molecule with IHC-equivocal doesn't have a real answer until FISH is checked. `get_tnbc_patient_barcodes()` in `data_utils.py` implements exactly this: HER2 is treated negative if IHC says negative outright, *or* IHC is equivocal and FISH says negative; TNBC requires ER negative, PR negative, and that combined HER2-negative call. Patients with a missing or indeterminate result on any of the three markers are excluded from the TNBC group rather than defaulted to non-TNBC — same "unknown isn't automatically the other bucket" principle applied to DepMap's missing `ModelSubtypeFeatures` values above.
+
+Result on the real data: **143 of 1,097 patients (13%) are TNBC** — squarely inside TNBC's well-documented ~10–20% share of breast cancers, a reassuring sanity check that the rule is behaving as expected before it's used for anything downstream. **142 of those 143 have a matching primary-tumor expression sample** in the RNA-seq matrix (one patient's clinical record has no paired expression data), giving a solid-sized cohort for Week 3's tumor-selectivity comparison.
+
+### TCGA-BRCA data downloaded
+
+- **Expression:** `BRCA.rnaseqv2_RSEM_genes_normalized.data.txt` — RSEM-normalized RNA-seq V2 counts, **20,531 genes × 1,212 samples** (1,093 of which are primary tumor samples, identified by the `-01` sample-type code in the TCGA barcode; the rest are normals/other sample types — relevant to the still-open "matched normal vs. GTEx baseline" decision).
+- **Clinical:** `All_CDEs.txt` (full clinical CDE table, used for receptor status above) and `BRCA.clin.merged.picked.txt` (Broad's curated one-value-per-field picks, which carry `vital_status`/`days_to_death`/`days_to_last_followup` for Week 4's survival analysis) — **1,097 patients**.
+- Sample barcodes in the expression file (`TCGA-3C-AAAU-01A-11R-A41B-07`, uppercase, full-length) don't match clinical file columns (`tcga-3c-aaau`, lowercase, patient-level) directly — `tcga_patient_barcode()` in `data_utils.py` handles the conversion.
 
 ## Week 0: Setup and scope
 
@@ -75,13 +105,13 @@ A few caveats to carry into Week 1/2 rather than gloss over:
 
 ## Week 1: Collect data and understand it
 
-- [ ] Load and lightly clean the DepMap gene-effect matrix.
+- [x] Load and lightly clean the DepMap gene-effect matrix.
 - [x] Define the TNBC cell-line set using subtype annotations or a documented mapping.
-- [ ] Download TCGA-BRCA expression and clinical data.
-- [ ] Use molecular subtype annotations rather than treating every breast tumor as TNBC.
-- [ ] Download GTEx median expression by tissue.
-- [ ] Record dimensions, missingness, and distributions.
-- [ ] Write a short explanation of what each dataset contributes.
+- [x] Download TCGA-BRCA expression and clinical data.
+- [x] Use molecular subtype annotations rather than treating every breast tumor as TNBC.
+- [x] Download GTEx median expression by tissue.
+- [ ] Record dimensions, missingness, and distributions (dimensions recorded below; missingness/distribution EDA still to do in a notebook).
+- [x] Write a short explanation of what each dataset contributes.
 
 **Week 1 outcome:** Clean, understood datasets and a defensible definition of the TNBC analysis groups.
 
