@@ -21,19 +21,32 @@ The project will use only public data and public-domain reasoning. It will not i
 
 ### DepMap (CRISPR dependency screens)
 
-DepMap runs genome-wide CRISPR knockout screens across hundreds of cancer cell lines and reports a "gene effect" score (via the Chronos algorithm) for every gene in every cell line — essentially, how much that cell line's growth/viability drops when the gene is knocked out. More negative means more essential to that cell line's survival. This is the "does the cancer actually depend on this gene" signal, and it's the genome-wide, in-silico analog of exactly what target validation does at the bench one gene at a time.
+**Why it matters:** DepMap runs genome-wide CRISPR knockout screens across hundreds of cancer cell lines and reports a "gene effect" score (via the Chronos algorithm) for every gene in every cell line — essentially, how much that cell line's growth/viability drops when the gene is knocked out. More negative means more essential to that cell line's survival. This is the "does the cancer actually depend on this gene" signal, and it's the genome-wide, in-silico analog of exactly what target validation does at the bench one gene at a time.
+
+**Why this source, specifically:** DepMap is essentially the only dataset of its kind — no other public resource runs CRISPR dependency screens across this many cancer cell lines with this much cell-line-level metadata (subtype annotations, lineage, etc.). The real choice here wasn't *which* dependency dataset, it was *which release*: went with **26Q1**, the current quarterly release at the time of download, rather than an older cached version, so the cell-line panel and Chronos scores match what anyone re-checking the portal today would see.
 
 ### TCGA-BRCA (tumor expression + clinical outcomes)
 
-The Cancer Genome Atlas's breast cancer cohort provides RNA-seq expression and clinical/survival data from real patient tumors. This answers two different questions from DepMap: is a gene that looks essential in TNBC cell lines actually turned up in real TNBC tumors (not just a cell-culture artifact)? And do patients whose tumors express it highly have worse outcomes? Together these move a candidate from "cell-line finding" toward "clinically plausible."
+**Why it matters:** The Cancer Genome Atlas's breast cancer cohort provides RNA-seq expression and clinical/survival data from real patient tumors. This answers two different questions from DepMap: is a gene that looks essential in TNBC cell lines actually turned up in real TNBC tumors (not just a cell-culture artifact)? And do patients whose tumors express it highly have worse outcomes? Together these move a candidate from "cell-line finding" toward "clinically plausible."
+
+**Why this source, specifically:** TCGA-BRCA itself was the obvious dataset (it's the standard, large, public breast-cancer cohort with matched expression + clinical + survival data), but there are several different ways to actually pull it, and that choice mattered:
+- **UCSC Xena** (the project plan's original suggestion, "simplest way to get pre-processed TCGA data") turned out to be blocked from this environment by the same kind of automated bot-check DepMap has — even though the intended workflow is a no-login browser download, it couldn't be scripted here.
+- **Raw GDC** (the Genomic Data Commons' own per-sample files) would have meant assembling ~1,100 individual sample files into one matrix — correct, but a lot of extra plumbing for what's ultimately the same underlying data.
+- **cBioPortal's REST API** works fine from here, but pulling a whole-genome expression matrix through it means paginating gene-by-gene in batches — thousands of small requests for one matrix.
+- **Broad Institute's GDAC Firehose archive** (the `stddata__2016_01_28` BRCA run) won out: it's a plain public HTTP host with no bot-check, serving the expression matrix as one already-merged flat file — the same underlying data cBioPortal's own `brca_tcga` study is built from, just fetched directly instead of through a paginated API. That made it fully scriptable (`scripts/download_tcga.py`).
+- For the *clinical* side specifically, chose the archive's full CDE table over cBioPortal's newer PanCancer Atlas study, because that newer study only carries a coarse PAM50-style `SUBTYPE` label — TNBC's real clinical definition needs actual ER/PR/HER2 IHC/FISH receptor status, which only the older archive's CDE table has (see "Defining TCGA-BRCA's TNBC patient set" below).
 
 ### GTEx (normal tissue baseline)
 
-The Genotype-Tissue Expression project profiles gene expression across dozens of normal (non-cancerous) human tissues. This is the safety/therapeutic-window check: a gene can be essential *and* tumor-overexpressed and still be a bad target if it's also highly expressed in the heart, liver, or bone marrow — a drug hitting it would likely cause dose-limiting toxicity before it could work on the tumor. This is the same kind of judgment a target-validation scientist applies before recommending a target for further investment.
+**Why it matters:** The Genotype-Tissue Expression project profiles gene expression across dozens of normal (non-cancerous) human tissues. This is the safety/therapeutic-window check: a gene can be essential *and* tumor-overexpressed and still be a bad target if it's also highly expressed in the heart, liver, or bone marrow — a drug hitting it would likely cause dose-limiting toxicity before it could work on the tumor. This is the same kind of judgment a target-validation scientist applies before recommending a target for further investment.
+
+**Why this source, specifically:** like DepMap, GTEx has essentially one canonical source (the GTEx project's own public data), so the choice was about *version*, not provider. The first file found was **v8** (2017, the release most tutorials/papers still cite), but a newer **v11** release exists (August 2025, updated GENCODE 47 gene annotation over v10, same underlying samples) — switched to that for current gene annotation and finer tissue resolution (68 tissues vs. v8's 54, from more granular tissue-site splitting).
 
 ### Human Protein Atlas (optional — druggability context)
 
-Protein-class annotations (kinase, cell-surface receptor, secreted protein, etc.), planned as an optional Week 3 addition. Used to flag which surviving candidates are more tractable for a small molecule or antibody to actually hit — a cell-surface receptor is a much easier drug target than an intracellular scaffolding protein, independent of how essential or tumor-selective it is.
+**Why it matters:** Protein-class annotations (kinase, cell-surface receptor, secreted protein, etc.), planned as an optional Week 3 addition. Used to flag which surviving candidates are more tractable for a small molecule or antibody to actually hit — a cell-surface receptor is a much easier drug target than an intracellular scaffolding protein, independent of how essential or tumor-selective it is.
+
+**Why this source:** HPA is the standard public reference for protein-class/tissue-expression annotation at this level of curation; not yet downloaded since it's an optional Week 3 addition, not a Week 0/1 requirement.
 
 ## Technical concepts & decisions
 
