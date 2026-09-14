@@ -123,10 +123,17 @@ Result on the real data: **143 of 1,097 patients (13%) are TNBC** — squarely i
 - [x] Download TCGA-BRCA expression and clinical data.
 - [x] Use molecular subtype annotations rather than treating every breast tumor as TNBC.
 - [x] Download GTEx median expression by tissue.
-- [ ] Record dimensions, missingness, and distributions (dimensions recorded below; missingness/distribution EDA still to do in a notebook).
+- [x] Record dimensions, missingness, and distributions.
 - [x] Write a short explanation of what each dataset contributes.
 
-**Week 1 outcome:** Clean, understood datasets and a defensible definition of the TNBC analysis groups.
+**Week 1 outcome:** Clean, understood datasets and a defensible definition of the TNBC analysis groups. Full EDA (dimensions, missingness, distributions, with plots) in `notebooks/01_data_eda.ipynb`.
+
+### EDA findings worth remembering (`notebooks/01_data_eda.ipynb`)
+
+- **DepMap:** 3.96% of the gene-effect matrix is missing, concentrated in ~8% of genes (every cell line has *some* missing genes, but most genes are complete across the whole panel) — consistent with inconsistent screening/QC across the panel, not a systemic problem. Score distribution is unimodal, centered just below 0, with a long negative (essential-gene) tail — the expected shape for a genome-wide CRISPR screen.
+- **TCGA expression:** zero missing values (RSEM normalization produces a dense matrix by construction), but heavily right-skewed like any RNA-seq count data — `log2(x + 1)` is the planned transform for Week 2/3 comparisons, same reasoning as the ADMET project's logS transform. The single most extreme raw value belongs to **SCGB2A2 (mammaglobin-B)** — a well-known, extremely breast-tissue-specific marker, so an extreme value for it is real biology, not a parsing bug. The highest-median-expression genes (`COL1A1`, `ACTB`, `EEF1A1`, `FN1`, ...) are exactly the housekeeping/collagen genes expected to dominate bulk tissue RNA-seq — a useful sanity check that the matrix is behaving like real expression data. 1,093 of 1,212 samples are primary tumor (`-01` code); the rest are matched-normal/other types, feeding the still-open normal-baseline decision.
+- **TCGA clinical:** HER2 FISH is missing for 62% of patients, which looks alarming in isolation but isn't a data problem — per the ASCO/CAP reflex rule, FISH is only ordered when IHC comes back equivocal (2+), so most patients' HER2 status is already resolved by IHC alone and simply never needed a FISH test. Similarly, `days_to_death` (86% missing) and `days_to_last_followup` (14% missing) are two sides of one coin — a patient has one or the other depending on `vital_status` (0% missing), never both. Both are the expected shape of survival data, not gaps to fix, and exactly what Week 4's Kaplan-Meier/Cox analysis is built to consume.
+- **GTEx:** zero missing values, but 54% of gene/tissue combinations are exactly 0 — expected for tissue-specific expression, where most genes simply aren't expressed in most tissues. Same right-skew/log2 pattern as TCGA.
 
 ## Week 2: Find selectively essential genes
 
