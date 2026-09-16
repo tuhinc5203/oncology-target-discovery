@@ -117,6 +117,29 @@ Also notable: relatively few genes clear even a relaxed q < 0.10 threshold (8-13
 
 Full results (all ~17,900 genes, both tests' p/q-values, effect size) saved to `data/processed/depmap_tnbc_essentiality.csv`; the top-40 shortlist to `data/processed/depmap_tnbc_shortlist.csv`.
 
+### The biological plausibility check found a real problem — and fixed it
+
+The raw statistical shortlist looked reasonable at a glance, but checking it against biology (this project's own guardrail: don't present a ranking as a finding until it's checked) surfaced two concrete, fixable problems, using data already downloaded for this project — no new source needed:
+
+1. **Pan-essential genes contaminating the "TNBC-selective" list.** Several of the top genes by q-value — `SNRPF`, `LSM2`, `POLR3A`, `SMU1`, `CCT3`, `PSMA5` — are core spliceosome/proteasome/RNA-Pol-III machinery, essential in *every* cell line (pan-cancer mean Chronos score between -2.0 and -3.2; Chronos is calibrated so -1 ≈ the median of known common-essential genes). With only 25 TNBC lines, even a universally essential gene's small-sample mean can drift slightly more negative than the huge comparison group's mean by chance, which survives multiple-testing correction without meaning anything TNBC-specific. This is a well-known pitfall in differential-essentiality analysis that the first pass didn't filter for. **Fix:** exclude any gene with a pan-cancer mean effect below -1.0 before ranking.
+2. **A likely sex-chromosome artifact.** The TNBC group is 100% female (25/25); the "other" comparison group is majority male (658 male vs. 462 female). `AMELY` (a Y-linked tooth-enamel gene) made the original shortlist despite having **zero expression in real TNBC tumors** — its "TNBC-selective" signal is far more plausibly a sex-linked technical artifact than real biology, and a purely statistical ranking has no way to see that on its own. **Fix:** require real expression in TCGA-BRCA TNBC tumors (median log2(RSEM+1) > 1) — this also caught several other implausible hits (an olfactory receptor `OR4K2`, a salivary gland protein `PRB4`, a neuronal ion channel `TRPC5`, none of which are expressed in breast tissue at all).
+
+(One technical fix needed along the way: matching DepMap genes to TCGA's 2016-vintage expression file by gene *symbol* silently failed for ~180 genes whose official symbol has since changed — switched to matching by **Entrez ID**, parsed from DepMap's own raw column headers, which matched 17,755 of 17,931 genes instead.)
+
+**After both filters, the revised shortlist (`data/processed/depmap_tnbc_shortlist_v2.csv`) is materially cleaner** — no more pan-essential machinery genes or unexpressed genes at the top. Checked five of the new top candidates against actual literature (not memory, to avoid asserting an unverified biological claim):
+
+| Gene | Literature match |
+|---|---|
+| **LY6E** | **Strong, TNBC-specific** — independently published (2025) as a TNBC "theranostic target": high membrane expression specifically in TNBC cell lines, low in normal breast epithelium, confirmed in a xenograft model, significantly elevated in TNBC tissue (p<0.0001). |
+| **CDKN1A (p21)** | Moderate, TNBC-specific — documented role in TNFα-induced, MMP9-dependent invasion in TNBC cell lines, and in breast-cancer-stem-cell survival after oxidative stress. |
+| **ZFX** | Moderate, breast-cancer-general (not TNBC-specific in what was found) — knockdown suppresses breast cancer proliferation via Akt/ERK2; oncogenic role also reported in several other cancers. |
+| **BIRC7 (Livin)** | Moderate, breast-cancer-general — elevated expression correlates with malignancy grade; linked to chemoresistance and trastuzumab resistance. |
+| **KIF2C** | Unconfirmed — no direct match found in this search; would need a more targeted lookup before drawing any conclusion either way. |
+
+**`LY6E` landing near the top of a DepMap dependency ranking, then turning out to already be independently published as TNBC-selective by a completely different method (RNA-seq + protein + xenograft), is the real "recovers known biology" result for Week 2** — not a guarantee every candidate is real, but genuine, independent corroboration for at least one. `KIF2C` is a reminder that clearing every filter still isn't the same as being validated; some candidates just need a closer look later.
+
+**The number to carry into Week 3 is `depmap_tnbc_shortlist_v2.csv`, not the original `depmap_tnbc_shortlist.csv`.**
+
 ## Week 0: Setup and scope
 
 - [x] Set up the Python environment and Jupyter kernel.
@@ -153,9 +176,9 @@ Full results (all ~17,900 genes, both tests' p/q-values, effect size) saved to `
 - [x] Use an appropriate statistical test and correct for multiple comparisons.
 - [x] Rank genes by dependency effect and statistical evidence.
 - [x] Create a shortlist of approximately 30–50 candidates.
-- [ ] Check whether the analysis recovers known TNBC biology.
+- [x] Check whether the analysis recovers known TNBC biology.
 
-**Week 2 outcome:** A ranked list of genes that TNBC cells appear to depend on preferentially.
+**Week 2 outcome — complete.** A plausibility-filtered ranked list of genes TNBC cells appear to depend on preferentially (`data/processed/depmap_tnbc_shortlist_v2.csv`), with the raw statistical ranking, the two biological problems found and fixed (pan-essential contamination, a likely sex-chromosome artifact), and a literature check of the survivors all in `notebooks/02_selective_essentiality.ipynb` and the "biological plausibility check" section above.
 
 ## Week 3: Check tumor selectivity and safety
 
