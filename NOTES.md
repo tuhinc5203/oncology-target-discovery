@@ -182,12 +182,35 @@ The raw statistical shortlist looked reasonable at a glance, but checking it aga
 
 ## Week 3: Check tumor selectivity and safety
 
-- [ ] Compare candidate expression in TNBC tumors with normal tissue baselines.
-- [ ] Prioritize genes that are both selectively essential and tumor-enriched.
-- [ ] Flag expression in critical normal tissues as a potential safety concern.
-- [ ] Optionally add Human Protein Atlas protein-class and druggability annotations.
+- [x] Compare candidate expression in TNBC tumors with normal tissue baselines.
+- [x] Prioritize genes that are both selectively essential and tumor-enriched.
+- [x] Flag expression in critical normal tissues as a potential safety concern.
+- [ ] Optionally add Human Protein Atlas protein-class and druggability annotations. (skipped for now — optional)
 
-**Week 3 outcome:** A smaller list with evidence for tumor selectivity and an initial safety assessment.
+**Week 3 outcome — complete.** `notebooks/03_tumor_selectivity_safety.ipynb` adds tumor-vs-normal fold change and a critical-tissue safety flag to every Week 2 candidate, producing `data/processed/depmap_tnbc_week3_final.csv`.
+
+### Resolving the TCGA-normal-vs-GTEx open decision: it wasn't really either/or
+
+This had sat as an open decision since Week 0. Turned out the two datasets answer genuinely different questions, so both get used rather than picking one:
+- **Tumor selectivity** (is the gene overexpressed in the tumor?) uses TCGA-BRCA's own **112 matched-normal breast samples** — same study, same sequencing pipeline, so the comparison isn't confounded by cross-study batch effects.
+- **Safety** (is the gene critical in vital organs?) needs GTEx, since TCGA-BRCA only has breast tissue — it can't answer "is this gene important in the heart" at all.
+
+### KIF2C: the standout candidate, with three independent lines of evidence
+
+- **DepMap:** selectively essential in TNBC (Week 2).
+- **TCGA-BRCA:** massively tumor-overexpressed — log2 fold change **+3.35** (roughly 10x) over matched normal breast, q < 1e-58.
+- **GTEx safety:** low expression in critical tissues (max 1.8 TPM across heart/liver/whole blood) — a favorable safety profile.
+- **Literature:** independently and extensively published as overexpressed in breast cancer (including ER-negative disease) and correlated with poor prognosis across multiple TCGA cohort studies, proposed as a prognostic biomarker in its own right.
+
+Three independent lines of evidence (essentiality, tumor overexpression, published literature) converging on one gene is a much stronger result than any single signal alone — exactly what Week 4's composite score is meant to formalize. Worth remembering: Week 2's literature search had called KIF2C "unconfirmed" — that search was specifically about a CRISPR-essentiality angle, which genuinely has no direct published hit. The overexpression/prognosis angle checked here is a different question, and a much better-supported one. A "no hit" on one search angle doesn't mean "no biology" — it's worth trying a different angle before writing a candidate off.
+
+### Real safety concerns, flagged rather than hidden
+
+- **`IFI6`** (log2fc +2.32) and **`LY6E`** (Week 2's strongest literature-validated hit) both show high critical-tissue expression (71.7 and 175.5 TPM) — both are interferon-stimulated genes broadly expressed in circulating immune cells, plausibly explaining a Whole Blood signal specifically. Doesn't rule either out, but it's a real caution to carry forward.
+- **`H2AC6`** (a core histone gene) has the highest critical-tissue value in the whole list (256 TPM) alongside strong tumor overexpression — histones are highly expressed in any proliferating tissue (including bone marrow), so this reads as a general-proliferation signal, not TNBC-specific biology.
+- **`SIGLEC8`**, on inspection, is a known eosinophil/mast-cell surface marker — its apparent "tumor overexpression" more plausibly reflects immune cells infiltrating the bulk tumor sample than the cancer cells themselves. A general caution: bulk RNA-seq can't distinguish tumor-cell signal from infiltrating-immune-cell signal, worth remembering for any candidate going forward.
+
+**Safety flag thresholds used** (a documented judgment call, not a universal standard): GTEx critical-tissue (heart/liver/whole blood, the latter as the standard bone-marrow proxy) max TPM < 5 = low, 5–20 = moderate, > 20 = high. Of the 40 candidates: 12 low, 12 moderate, 16 high.
 
 ## Week 4: Test clinical relevance and score candidates
 
