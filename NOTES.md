@@ -105,6 +105,18 @@ Result on the real data: **143 of 1,097 patients (13%) are TNBC** — squarely i
 - **Clinical:** `All_CDEs.txt` (full clinical CDE table, used for receptor status above) and `BRCA.clin.merged.picked.txt` (Broad's curated one-value-per-field picks, which carry `vital_status`/`days_to_death`/`days_to_last_followup` for Week 4's survival analysis) — **1,097 patients**.
 - Sample barcodes in the expression file (`TCGA-3C-AAAU-01A-11R-A41B-07`, uppercase, full-length) don't match clinical file columns (`tcga-3c-aaau`, lowercase, patient-level) directly — `tcga_patient_barcode()` in `data_utils.py` handles the conversion.
 
+### Choosing the essentiality test: Welch's t-test vs. Mann-Whitney U, run side by side
+
+Talked through before implementing rather than picking one upfront. The core tension: the TNBC group is only 25 cell lines against ~1,181 others, and a t-test's validity leans on the *mean* being a stable summary of each gene's TNBC-group scores — one unusual cell line among only 25 has real leverage to swing a mean-based test. Mann-Whitney U (rank-based) doesn't have that problem, at some cost in statistical power if the data really is well-behaved. Rather than guess which mattered more here, ran **both**, for every gene, and compared them empirically — same instinct as the ADMET project's RF-vs-XGBoost comparisons.
+
+**Comparison group definition:** "TNBC" is the 25 CRISPR-screened lines from Week 1's mapping; "other" is *every remaining* DepMap line with CRISPR data, **except** the 2 breast lines with no `ModelSubtypeFeatures` value at all — same "unknown isn't automatically the other bucket" rule used for the TNBC mapping itself, applied here so those 2 unlabeled lines can't quietly dilute the comparison group with a possible unlabeled TNBC line.
+
+**Result — the two tests broadly agree, but the disagreement at the threshold matters:** across all ~17,900 testable genes, the two tests' p-values correlate strongly (Spearman ρ = 0.87), so in the big picture they're measuring the same signal. But at a practical significance threshold (q < 0.10, restricted to genes more essential in TNBC), the t-test calls **8 genes** significant and Mann-Whitney calls **13** — only **6 genes overlap (40% of the union)**. High overall correlation and low overlap-at-threshold aren't a contradiction: it means the two tests agree on the broad ranking but disagree at the margin, exactly where a "shortlist" decision actually gets made. Given the group-size imbalance reasoning above, **Mann-Whitney's ranking is the one used for the actual shortlist** (`u_q` column, sorted ascending), with the t-test's `t_q` kept alongside every row for comparison rather than discarded.
+
+Also notable: relatively few genes clear even a relaxed q < 0.10 threshold (8-13, not 30-50) — a real signal that TNBC-selective essentiality, at genome-wide multiple-testing correction, is a comparatively weak/subtle effect with only 25 cell lines' worth of power, not a sign anything is broken. The plan's 30-50-gene shortlist is produced by taking the top-N by rank instead of a hard significance cutoff (see `notebooks/02_selective_essentiality.ipynb`), which is a materially different (softer) standard than "statistically significant genome-wide" — worth remembering when deciding how much weight any individual candidate can bear later.
+
+Full results (all ~17,900 genes, both tests' p/q-values, effect size) saved to `data/processed/depmap_tnbc_essentiality.csv`; the top-40 shortlist to `data/processed/depmap_tnbc_shortlist.csv`.
+
 ## Week 0: Setup and scope
 
 - [x] Set up the Python environment and Jupyter kernel.
@@ -137,10 +149,10 @@ Result on the real data: **143 of 1,097 patients (13%) are TNBC** — squarely i
 
 ## Week 2: Find selectively essential genes
 
-- [ ] Compare gene dependency in TNBC cells with other cell lines.
-- [ ] Use an appropriate statistical test and correct for multiple comparisons.
-- [ ] Rank genes by dependency effect and statistical evidence.
-- [ ] Create a shortlist of approximately 30–50 candidates.
+- [x] Compare gene dependency in TNBC cells with other cell lines.
+- [x] Use an appropriate statistical test and correct for multiple comparisons.
+- [x] Rank genes by dependency effect and statistical evidence.
+- [x] Create a shortlist of approximately 30–50 candidates.
 - [ ] Check whether the analysis recovers known TNBC biology.
 
 **Week 2 outcome:** A ranked list of genes that TNBC cells appear to depend on preferentially.

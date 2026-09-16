@@ -35,6 +35,7 @@ This file is internal working context for the coding assistant. Keep it concise,
 - **TCGA-BRCA TNBC patient mapping resolved:** `data_utils.get_tnbc_patient_barcodes()` combines `breast_carcinoma_estrogen_receptor_status`, `..._progesterone_receptor_status`, and HER2 IHC (`lab_proc_her2_neu_immunohistochemistry_receptor_status`) + FISH (`lab_procedure_her2_neu_in_situ_hybrid_outcome_type`) from `All_CDEs.txt`. HER2-negative = IHC negative, OR IHC equivocal with FISH negative (ASCO/CAP reflex rule). TNBC = ER-neg AND PR-neg AND HER2-neg; missing/indeterminate on any marker excludes the patient from both groups. Result: 143/1,097 patients (13%, matches expected clinical prevalence), 142 with matched tumor expression data. Full reasoning in `NOTES.md`'s "Defining TCGA-BRCA's TNBC patient set" section.
 - **`src/data_utils.py` now has loaders for all 3 downloaded sources:** `load_model_metadata`/`load_gene_effect`/`get_tnbc_model_ids` (DepMap), `load_tcga_expression`/`load_tcga_clinical_cdes`/`get_tnbc_patient_barcodes`/`tcga_patient_barcode`/`tcga_is_tumor_sample` (TCGA), `load_gtex_median_tpm` (GTEx). All verified against the real files.
 - **Week 1 is complete.** `notebooks/01_data_eda.ipynb` executed end-to-end (via `jupyter nbconvert --execute`, no errors): dimensions/missingness/distributions for all 3 downloaded sources + the clinical CDE table. Key numbers: DepMap 3.96% missing (concentrated in ~8% of genes); TCGA expression 0% missing, heavily right-skewed (log2(x+1) planned); GTEx 0% missing, 54% exact zeros. Full findings + explanations in `NOTES.md`'s "EDA findings worth remembering" section. TCGA matched-normal-vs-GTEx-baseline decision still open (1,093 tumor vs. 119 normal/other samples in the expression matrix).
+- **Week 2 essentiality analysis done (biology sanity-check still pending).** `notebooks/02_selective_essentiality.ipynb` runs Welch's t-test AND Mann-Whitney U per gene (25 TNBC lines vs. 1,181 other DepMap lines with CRISPR data; 2 unknown-subtype breast lines excluded from both groups), with BH-FDR correction (`scipy.stats.false_discovery_control`) on each test separately. Results: `data/processed/depmap_tnbc_essentiality.csv` (all ~17,900 testable genes) and `data/processed/depmap_tnbc_shortlist.csv` (top 40 by Mann-Whitney q-value, effect_size < 0). Tests correlate strongly overall (Spearman ρ=0.87) but only 40% overlap in genes called significant at q<0.10 (8 vs. 13 genes) — **using Mann-Whitney's ranking as primary**, per the group-imbalance reasoning in `NOTES.md`. Full write-up in `NOTES.md`'s "Choosing the essentiality test" section. **Not yet done:** checking the shortlist against known TNBC biology (plan's Week 2 step 5, and this file's own "validate against known biology" guardrail) — do NOT present these genes as findings until that check happens.
 - **Local dev gotcha:** `conda activate target-discovery` doesn't reliably win the `PATH` race against Homebrew's system Python in this shell — call the env's Python by full path (`/Applications/miniconda3/envs/target-discovery/bin/python3`) to avoid silently running without the installed packages.
 - **Bot-check pattern, confirmed twice now:** DepMap's portal blocks automated requests (Cloudflare) even though no login is actually required. TCGA/GTEx don't have this — GDAC Firehose and GTEx's GCS bucket are plain public HTTP with no bot-check, so those two are scripted (`scripts/download_tcga.py`, `scripts/download_gtex.py`), while DepMap stays a manual step. Don't assume a data portal is blocked just because DepMap was — test each one directly (`curl`/`WebFetch`) before concluding it needs the user's browser.
 
@@ -51,6 +52,7 @@ This file is internal working context for the coding assistant. Keep it concise,
 
 - Prefer small, reproducible modules over notebook-only logic.
 - Preserve raw downloads separately from cleaned/intermediate data.
+- `data/processed/` is gitignored by default (like `data/raw/`), but small, meaningful, named result files worth tracking in git history (e.g. a shortlist CSV a later week's analysis depends on) get `git add -f`'d individually rather than left uncommitted — same treatment as the `.gitkeep` placeholders. Don't force-add large/disposable intermediate caches this way.
 - Record missingness, sample counts, identifiers, and filtering decisions.
 - Use multiple-testing correction for genome-wide comparisons.
 - Validate candidate rankings against known TNBC biology before presenting novel hypotheses.
@@ -59,7 +61,8 @@ This file is internal working context for the coding assistant. Keep it concise,
 ## Open decisions
 
 - Whether matched TCGA normal samples (only ~119 of 1,212 samples aren't primary-tumor-coded) are sufficient or GTEx is the primary normal baseline for Week 3's safety filtering.
-- Statistical test, effect-size definition, and composite-score weights.
+- Composite-score weights (Week 4).
+- Whether the Week 2 shortlist survives the pending known-biology sanity check, or needs revisiting.
 
 ## Resolved decisions
 
@@ -68,3 +71,4 @@ This file is internal working context for the coding assistant. Keep it concise,
 - **TCGA-BRCA run:** GDAC Firehose `stddata__2016_01_28` (BRCA) — same source as cBioPortal's `brca_tcga` study.
 - **TCGA-BRCA TNBC patient mapping:** ER-neg AND PR-neg AND combined-HER2-neg (IHC negative, or IHC equivocal + FISH negative), via `get_tnbc_patient_barcodes()`. 143/1,097 patients; 142 with expression data.
 - **GTEx release:** v11 (`GTEx_Analysis_v11_gene_median_tpm.gct.gz`, 74,628 genes × 68 tissues).
+- **Essentiality test + effect size:** mean-difference effect size; Mann-Whitney U as primary test (t-test kept alongside for comparison) — see `NOTES.md`.
