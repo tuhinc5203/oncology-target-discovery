@@ -99,6 +99,39 @@ def get_tnbc_patient_barcodes(cde_df):
     return cde_df.columns[is_tnbc]
 
 
+_STAGE_TO_ORDINAL = {
+    "stage i": 1, "stage ia": 1, "stage ib": 1,
+    "stage ii": 2, "stage iia": 2, "stage iib": 2,
+    "stage iii": 3, "stage iiia": 3, "stage iiib": 3, "stage iiic": 3,
+    "stage iv": 4,
+}
+
+
+def get_tnbc_survival_data(cde_df, patient_barcodes=None):
+    """Build a time/event survival table for TNBC patients.
+
+    `time` is days_to_death for patients who died, or days_to_last_followup
+    (censored -- still alive as of last contact) otherwise. `event` is 1 for
+    died, 0 for censored -- the standard survival-analysis convention
+    lifelines' KaplanMeierFitter/CoxPHFitter expect. Also includes age at
+    diagnosis and a simplified numeric tumor stage (I-IV, sub-stage letter
+    dropped) for optional Cox-model covariate adjustment.
+    """
+    if patient_barcodes is None:
+        patient_barcodes = get_tnbc_patient_barcodes(cde_df)
+    vital = cde_df.loc["vital_status", patient_barcodes]
+    days_to_death = cde_df.loc["days_to_death", patient_barcodes]
+    days_to_last_followup = cde_df.loc["days_to_last_followup", patient_barcodes]
+    age = cde_df.loc["age_at_initial_pathologic_diagnosis", patient_barcodes]
+    stage_raw = cde_df.loc["pathologic_stage", patient_barcodes]
+
+    event = (vital == "dead").astype(int)
+    time = days_to_death.where(vital == "dead", days_to_last_followup).astype(float)
+    stage = stage_raw.map(_STAGE_TO_ORDINAL)
+
+    return pd.DataFrame({"time": time, "event": event, "age": age.astype(float), "stage": stage})
+
+
 def load_gtex_median_tpm(path=GTEX_DIR / "GTEx_Analysis_v11_gene_median_tpm.gct.gz"):
     """Load GTEx's median-TPM-by-tissue matrix (genes x tissues).
 

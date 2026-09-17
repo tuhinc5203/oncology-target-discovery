@@ -235,13 +235,37 @@ Added after initially, and wrongly, being skipped as "optional." Downloaded `pro
 
 ## Week 4: Test clinical relevance and score candidates
 
-- [ ] Run Kaplan-Meier analysis for the leading candidates.
-- [ ] Run Cox models for the strongest candidates.
-- [ ] Define and explain the composite score.
+- [x] Run Kaplan-Meier analysis for the leading candidates.
+- [x] Run Cox models for the strongest candidates.
+- [ ] Define and explain the composite score. (paused deliberately — see below)
 - [ ] Combine dependency, tumor selectivity, survival, safety, and optional druggability signals.
 - [ ] Produce a final ranked list of 5–10 targets.
 
-**Week 4 outcome:** A ranked target list supported by multiple independent lines of evidence.
+**Week 4 progress:** Survival analysis is done (`notebooks/04_survival_analysis.ipynb`). The composite score itself is intentionally paused — the weighting is a real judgment call worth talking through before I pick numbers, not something to decide alone (same lesson as HPA earlier).
+
+### Narrowing to 15 before survival analysis: not either/or with the full 40
+
+Rather than run survival analysis on all 40 Week 3 candidates, first filtered to the 20 that are actually tumor-enriched (`log2fc_tumor_vs_normal > 0`) — genes that don't meet that bar don't fit the project's own definition of a good candidate regardless of what a survival test might show — then ranked by combined essentiality + tumor-selectivity strength and took the top 15. Two real benefits: survival testing needs its own multiple-testing correction, and correcting across 15 tests preserves meaningfully more power than correcting across 40; and it's a more defensible narrative ("applied established criteria before spending analysis on survival" beats "tested everything and hoped something stuck"). The accepted tradeoff: a gene that's essential, safe, and genuinely prognostic but not measurably tumor-overexpressed in bulk RNA-seq wouldn't get tested here — a real but deliberate risk, not an oversight.
+
+### A real reproducibility bug caught and fixed: notebooks were silently running under the wrong Python environment
+
+While setting up Week 4's notebook (the first to need `lifelines`), execution failed with `ModuleNotFoundError: No module named 'lifelines'` — even though `lifelines` is installed in the `target-discovery` conda environment. Investigated rather than just adding a workaround: it turned out `jupyter nbconvert --execute` was defaulting to a generic `"python3"` kernel that resolved to the **base** conda environment (Python 3.11), not the registered `target-discovery` kernel (Python 3.10) — even though the `nbconvert` command itself was being run via `target-discovery`'s own Python. The command-line tool's own Python and the kernel it launches to actually run notebook *cells* are two separate things, and only one of them was ever being pointed at the right environment.
+
+**This meant Weeks 1–3's notebooks had likely been executing under the base environment this whole time, not the pinned `target-discovery` environment as documented.** Checked directly rather than assumed: re-ran all three notebooks with the kernel explicitly forced to `target-discovery`, and diffed every output against what was already committed. **All outputs were byte-for-byte identical** (once accounting for one harmless one-time "building font cache" message that only prints the first time matplotlib runs in a fresh environment) — the specific numpy/scipy/matplotlib version differences between the two environments didn't happen to change any result here. Real reassurance, but also luck, not something to rely on going forward.
+
+**Fixed properly, not just patched around:** every notebook now has explicit `kernelspec` metadata pointing at `target-discovery`, so opening any of them in Jupyter or VS Code selects the right environment by default, and `--ExecutePreprocessor.kernel_name=target-discovery` is now used explicitly whenever running via `nbconvert` from now on. Worth remembering for any future notebook: adding a new package to `environment.yml` doesn't guarantee a notebook is actually running against it — check which kernel actually executed, not just which environment `pip`/`conda` reports the package installed into.
+
+### Survival analysis results
+
+Ran on the 142 TNBC patients who have both survival data and expression data, using `data_utils.get_tnbc_survival_data()` (new: builds `time`/`event` from `vital_status` + `days_to_death`/`days_to_last_followup`, plus age and a simplified I–IV tumor stage for optional Cox-model adjustment).
+
+**Kaplan-Meier (median-split, log-rank test): no gene survives FDR correction** — every corrected q-value is above 0.66. Worth naming honestly rather than downplaying: this cohort has only **21 deaths** among 142 patients, and a survival analysis's real statistical power comes from the number of *events*, not the number of patients. 21 events is a small number to detect anything short of a very large effect, especially with a median split that throws away information by collapsing a continuous expression value into two buckets.
+
+**Cox regression (continuous expression, age/stage-adjusted) finds one real signal: `LY6E`.** Unadjusted hazard ratio 1.62 (higher expression → worse survival), p=0.019 — not quite enough to survive correction across 15 genes alone (q=0.28). But adjusting for age and tumor stage **strengthens** the result (HR 1.74, p=0.0024, **q=0.036 — survives correction**). That's a meaningful pattern: part of the crude association was being diluted by age/stage differences between patients, and controlling for them reveals a cleaner, stronger effect — the opposite of what a spurious/confounded result would do. `LY6E` now has real survival evidence from this project's own data, on top of Week 2's independent literature validation and Week 3's tumor-overexpression finding.
+
+**`KIF2C` shows no survival association here (cox_p=0.72) — and that's expected, not a contradiction.** This lines up exactly with the HPA discrepancy investigated in Week 3: HPA's own single-cohort analysis of `KIF2C` also came back "unprognostic," while the published literature that *did* find significance pooled many independent cohorts for far more statistical power than any single cohort — this one included — can offer. A 142-patient, 21-event cohort was never likely to detect that effect alone; this null result doesn't undermine `KIF2C`'s standing, it's simply consistent with what a dataset this size can and can't show.
+
+**Week 4 outcome (partial):** Kaplan-Meier and Cox survival analysis complete, one gene (`LY6E`) with statistically robust survival evidence from this project's own data. Composite scoring and the final ranked list are next, pending a discussion of how to weight the signals.
 
 ## Week 5: Explain and polish the result
 
