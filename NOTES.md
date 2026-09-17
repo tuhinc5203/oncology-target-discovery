@@ -237,11 +237,11 @@ Added after initially, and wrongly, being skipped as "optional." Downloaded `pro
 
 - [x] Run Kaplan-Meier analysis for the leading candidates.
 - [x] Run Cox models for the strongest candidates.
-- [ ] Define and explain the composite score. (paused deliberately — see below)
-- [ ] Combine dependency, tumor selectivity, survival, safety, and optional druggability signals.
-- [ ] Produce a final ranked list of 5–10 targets.
+- [x] Define and explain the composite score.
+- [x] Combine dependency, tumor selectivity, and survival signals; keep safety and druggability as annotations rather than blending them in.
+- [x] Produce a final ranked list of the 15 candidates.
 
-**Week 4 progress:** Survival analysis is done (`notebooks/04_survival_analysis.ipynb`). The composite score itself is intentionally paused — the weighting is a real judgment call worth talking through before I pick numbers, not something to decide alone (same lesson as HPA earlier).
+**Week 4 progress:** Complete. Survival analysis and composite scoring are both done (`notebooks/04_survival_analysis.ipynb`), producing `data/processed/depmap_tnbc_final_ranked_targets.csv`.
 
 ### Narrowing to 15 before survival analysis: not either/or with the full 40
 
@@ -275,7 +275,31 @@ Ran on the 142 TNBC patients who have both survival data and expression data, us
 
 **`KIF2C` shows no survival association here (cox_p=0.72) — and that's expected, not a contradiction.** This lines up exactly with the HPA discrepancy investigated in Week 3: HPA's own single-cohort analysis of `KIF2C` also came back "unprognostic," while the published literature that *did* find significance pooled many independent cohorts for far more statistical power than any single cohort — this one included — can offer. A 142-patient, 21-event cohort was never likely to detect that effect alone; this null result doesn't undermine `KIF2C`'s standing, it's simply consistent with what a dataset this size can and can't show.
 
-**Week 4 outcome (partial):** Kaplan-Meier and Cox survival analysis complete, one gene (`LY6E`) with statistically robust survival evidence from this project's own data. Composite scoring and the final ranked list are next, pending a discussion of how to weight the signals.
+### What other target-discovery frameworks do about weighting — checked before deciding
+
+Before picking a weighting scheme, looked at how the field actually handles this, since "how do others do it" is exactly the kind of question worth being able to answer in an interview. Three different philosophies show up:
+
+- **Don't combine at all.** `shinyDepMap`, the standard tool for browsing DepMap data, deliberately does *not* build a single efficacy+selectivity score — its authors note the two axes trade off against each other (the strongest-effect genes tend to be the least selective, and vice versa), so collapsing them into one number would hide a real tension. It shows a 2D scatterplot instead and leaves the call to the researcher.
+- **Filter sequentially, rank only what survives — no composite score at all.** A DepMap-based head-and-neck cancer target paper (Zhang et al., identifying `PAK2`) uses a pure pipeline: essentiality threshold → druggability filter → hard-exclude pan-essential/core-fitness genes (the same shape as this project's own Week 2 plausibility filter) → rank survivors by essentiality strength. Safety and selectivity are gates applied *before* ranking, never blended into a score.
+- **Weighted combination, with the weights made explicit.** Open Targets Platform — the field's most-used target-disease association resource — does combine many evidence sources into one score, but via a documented weighted harmonic sum, and its newer "Target Prioritisation" view keeps tractability/safety as a *separate panel* shown alongside the association score rather than merged into it. A related methods paper (Kim et al., *Scientific Reports* 2019) that does build an explicit efficacy-vs-safety composite uses a genuinely equal weighted sum (0.5/0.5) as its default case study, while stating outright that the weighting is a subjective choice, not a derived constant.
+
+The common thread: safety in particular tends to be kept out of the same score as the positive-evidence axes, whether that means a hard filter or a separate display panel. That's the precedent this project's own composite score follows.
+
+### The composite score: rank-averaging three evidence axes, safety/druggability as annotations
+
+Decided with the user, not unilaterally: average the ranks of the three **continuous evidence-strength axes** — essentiality (Week 2's Mann-Whitney q-value), tumor selectivity (Week 3's tumor-vs-normal q-value), and survival association (this week's age/stage-adjusted Cox q-value) — into one composite rank, equally weighted. Safety (the GTEx critical-tissue flag) and druggability (HPA protein class/subcellular location) are kept as **annotations shown next to the ranking, not folded into the score** — adjustable later if the user wants to revisit it, but the field precedent above (safety as a gate or a separate panel, not a blended score) supports this as the default.
+
+**Why rank-average rather than average the raw q-values or z-scores:** the three axes aren't on comparable numeric scales — a q-value of 1e-58 and a Cox p-value of 0.05 aren't the same "distance" from significance, so averaging them directly would let whichever axis happens to produce more extreme numbers dominate by accident. Rank-averaging sidesteps that: each axis contributes one equally-weighted vote on relative ordering. It's also naturally more robust to the survival axis being underpowered (only 21 deaths among 142 patients) — a noisy, near-random p-value can only nudge a gene's *rank* by a little, whereas it could swing a raw z-score average by a lot.
+
+**What the final ranking actually shows, read honestly:**
+- **`IFI6` and `LY6E` come out on top (ranks 1 and 2)** — and both carry a "high" GTEx safety flag. This is the concrete payoff of the annotation-not-filter decision: a hard safety filter applied before ranking would have removed two of the top three candidates outright, on the basis of a whole-blood expression signal that's more likely a circulating-immune-cell artifact (Week 3) than evidence against these being real TNBC-cancer-cell dependencies.
+- **`IFI6` edges out `LY6E`, and the reason is worth naming out loud:** rank-averaging rewards consistency across axes over one standout result. `LY6E` has this project's only statistically significant survival finding (q=0.036) but a middling tumor-selectivity rank (10th of 15), which pulls its composite down. `IFI6` is never the best on any single axis (7th/3rd/3rd) but never weak either. A scheme that weighted survival more heavily — because it's the most clinically direct signal — would put `LY6E` first instead. That's the real, defensible tradeoff of choosing equal weighting, not a hidden side effect.
+- **A caution about the survival axis specifically:** only `LY6E`'s Cox result actually survives FDR correction; every other gene's adjusted q-value is above 0.4, several tied outright. A gene ranking 2nd or 3rd on survival among these 15 means "one of the least non-significant results," not a second real finding — the composite doesn't distinguish real signal from the least-noisy-looking non-effect, a genuine limitation of rank-averaging across axes with very different statistical power.
+- **`KIF2C`** — despite the strongest outside literature support and the single best tumor-selectivity rank (1st) — lands mid-pack (9th, tied with `PSMD9`), pulled down by a middling essentiality rank and the weakest survival rank (consistent with the power limitation already established via the HPA discrepancy in Week 3, not a new negative finding). The composite only reflects these three specific axes; it doesn't erase the independent literature context built up earlier.
+
+**Final output:** `data/processed/depmap_tnbc_final_ranked_targets.csv` — all 15 candidates with the composite rank, each contributing rank, and the safety/druggability annotations, sorted best-to-worst. This is the project's final ranked target list.
+
+**Week 4 outcome:** Complete. Kaplan-Meier and Cox survival analysis, plus a composite score combining essentiality, tumor selectivity, and survival (safety/druggability as annotations), producing a final ranked list of the 15 candidates. `LY6E` has the strongest individual statistical evidence; `IFI6` ranks first under equal-weighted rank-averaging because it's consistently solid across all three axes rather than a standout on one.
 
 ## Week 5: Explain and polish the result
 
