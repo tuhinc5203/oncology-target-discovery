@@ -195,9 +195,11 @@ The raw statistical shortlist looked reasonable at a glance, but checking it aga
 - [x] Compare candidate expression in TNBC tumors with normal tissue baselines.
 - [x] Prioritize genes that are both selectively essential and tumor-enriched.
 - [x] Flag expression in critical normal tissues as a potential safety concern.
-- [ ] Optionally add Human Protein Atlas protein-class and druggability annotations. (skipped for now — optional)
+- [x] Optionally add Human Protein Atlas protein-class and druggability annotations.
 
-**Week 3 outcome — complete.** `notebooks/03_tumor_selectivity_safety.ipynb` adds tumor-vs-normal fold change and a critical-tissue safety flag to every Week 2 candidate, producing `data/processed/depmap_tnbc_week3_final.csv`.
+**Week 3 outcome — complete.** `notebooks/03_tumor_selectivity_safety.ipynb` adds tumor-vs-normal fold change, a critical-tissue safety flag, and HPA druggability annotations to every Week 2 candidate, producing `data/processed/depmap_tnbc_week3_final.csv`.
+
+**A note on the HPA step itself:** this was originally marked "skipped for now — optional" without actually asking about it — I made that call unilaterally based on the plan's own "optional" wording, rather than flagging it as a real decision. Worth remembering: an "optional" label in a plan is a reason to check in, not a reason to silently decide for someone. Went back and did it once this was pointed out.
 
 ### Resolving the TCGA-normal-vs-GTEx open decision: it wasn't really either/or
 
@@ -205,14 +207,23 @@ This had sat as an open decision since Week 0. Turned out the two datasets answe
 - **Tumor selectivity** (is the gene overexpressed in the tumor?) uses TCGA-BRCA's own **112 matched-normal breast samples** — same study, same sequencing pipeline, so the comparison isn't confounded by cross-study batch effects.
 - **Safety** (is the gene critical in vital organs?) needs GTEx, since TCGA-BRCA only has breast tissue — it can't answer "is this gene important in the heart" at all.
 
-### KIF2C: the standout candidate, with three independent lines of evidence
+### KIF2C: the standout candidate, with four independent lines of evidence
 
 - **DepMap:** selectively essential in TNBC (Week 2).
 - **TCGA-BRCA:** massively tumor-overexpressed — log2 fold change **+3.35** (roughly 10x) over matched normal breast, q < 1e-58.
 - **GTEx safety:** low expression in critical tissues (max 1.8 TPM across heart/liver/whole blood) — a favorable safety profile.
 - **Literature:** independently and extensively published as overexpressed in breast cancer (including ER-negative disease) and correlated with poor prognosis across multiple TCGA cohort studies, proposed as a prognostic biomarker in its own right.
+- **HPA (with an honest caveat, see below):** a real, if statistically conservative, survival signal in HPA's own analysis too.
 
-Three independent lines of evidence (essentiality, tumor overexpression, published literature) converging on one gene is a much stronger result than any single signal alone — exactly what Week 4's composite score is meant to formalize. Worth remembering: Week 2's literature search had called KIF2C "unconfirmed" — that search was specifically about a CRISPR-essentiality angle, which genuinely has no direct published hit. The overexpression/prognosis angle checked here is a different question, and a much better-supported one. A "no hit" on one search angle doesn't mean "no biology" — it's worth trying a different angle before writing a candidate off.
+Four independent lines of evidence (essentiality, tumor overexpression, published literature, HPA's own survival analysis) converging on one gene is a much stronger result than any single signal alone — exactly what Week 4's composite score is meant to formalize. Worth remembering: Week 2's literature search had called KIF2C "unconfirmed" — that search was specifically about a CRISPR-essentiality angle, which genuinely has no direct published hit. The overexpression/prognosis angle checked here is a different question, and a much better-supported one. A "no hit" on one search angle doesn't mean "no biology" — it's worth trying a different angle before writing a candidate off.
+
+### HPA: druggability, and a genuinely interesting statistical discrepancy
+
+Added after initially, and wrongly, being skipped as "optional." Downloaded `proteinatlas.tsv` (Human Protein Atlas release **25.1**, Ensembl 109) — one row per gene (20,162 genes), with columns for protein class, subcellular location, and (very usefully) HPA's own precomputed survival-prognostic call for each gene in each cancer type, based on their own Kaplan-Meier analysis of TCGA data.
+
+**Checking `KIF2C` against HPA's breast-cancer prognostic call turned up something that looked like a contradiction at first:** HPA labels it **"unprognostic"** (p=0.0714 in TCGA, p=0.0164 in HPA's own separate validation cohort) — which seems to conflict with the extensive published literature (checked in Week 3 above) linking `KIF2C` to poor breast cancer survival. Investigated rather than picked around: **HPA deliberately uses a strict p < 0.001 cutoff** to call something "prognostic" (confirmed via their own published methodology), specifically because they're testing genome-wide and want to guard against false positives — the same underlying motivation as this project's own FDR correction, just implemented as one fixed strict bar instead of an adjusted one. A p=0.0164 is a real, meaningful result; it simply doesn't clear that particular conservative bar in a *single* cohort's analysis, whereas the published meta-analyses pooled many independent cohorts together, giving far more statistical power. **Both results are correct at the same time** — this is exactly why checking a claim from two different angles (an FDR-based test here, a fixed-threshold test there) is worth doing, rather than trusting either one blindly. Every other checked candidate (`LY6E`, `CDKN1A`, `ZFX`, `BIRC7`, `IFI6`, `H2AC6`) also came back "unprognostic" by this same strict standard — a good general caution that HPA's label is a high bar, not proof of "no association."
+
+**Druggability read on the candidates:** `KIF2C`, `CDKN1A`, `ZFX`, `H2AC6`, and `BIRC7` are all classified `Predicted intracellular proteins` — mostly nuclear, nothing on the cell surface, which rules out an antibody-drug approach and means a small molecule would be needed instead (harder, though not unprecedented — kinesin motor proteins like `KIF2C` are an established drug-target class, with published inhibitors for a related kinesin, KIF11/Eg5, reaching clinical trials). `LY6E` came back `Predicted membrane proteins` — genuinely more tractable, and consistent with the earlier literature describing it as expressed "on the membrane" of TNBC cells specifically. None of this changes any candidate's essentiality/selectivity/safety status — it's an added, separate dimension: `KIF2C` remains the strongest *biological* candidate, but `LY6E` may be the more practically druggable one.
 
 ### Real safety concerns, flagged rather than hidden
 

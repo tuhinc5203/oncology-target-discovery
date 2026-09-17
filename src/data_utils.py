@@ -1,7 +1,7 @@
 """Loaders for this project's raw data sources.
 
-DepMap Public 26Q1, TCGA-BRCA (GDAC Firehose stddata__2016_01_28), and
-GTEx v11 are downloaded. HPA (optional, Week 3) is not yet.
+DepMap Public 26Q1, TCGA-BRCA (GDAC Firehose stddata__2016_01_28),
+GTEx v11, and HPA (Human Protein Atlas) 25.1 are all downloaded.
 """
 
 from pathlib import Path
@@ -12,10 +12,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEPMAP_DIR = PROJECT_ROOT / "data" / "raw" / "depmap"
 TCGA_DIR = PROJECT_ROOT / "data" / "raw" / "tcga"
 GTEX_DIR = PROJECT_ROOT / "data" / "raw" / "gtex"
+HPA_DIR = PROJECT_ROOT / "data" / "raw" / "hpa"
 
 DEPMAP_RELEASE = "26Q1"
 TCGA_RUN = "GDAC Firehose stddata__2016_01_28 (BRCA)"
 GTEX_RELEASE = "v11"
+HPA_RELEASE = "25.1"
 
 
 def load_model_metadata(path=DEPMAP_DIR / "Model Data.csv"):
@@ -105,3 +107,22 @@ def load_gtex_median_tpm(path=GTEX_DIR / "GTEx_Analysis_v11_gene_median_tpm.gct.
     are skipped automatically by pandas via `skiprows`.
     """
     return pd.read_csv(path, sep="\t", index_col=0, skiprows=2, compression="gzip")
+
+
+def load_hpa(path=HPA_DIR / "proteinatlas.tsv"):
+    """Load the Human Protein Atlas bulk TSV, indexed by gene symbol.
+
+    One row per gene, ~119 columns covering protein class, subcellular
+    location, and (among others) per-cancer-type survival-prognostic
+    calls computed by HPA itself from TCGA data. HPA calls a gene
+    "prognostic" only below a strict p < 0.001 threshold (log-rank test on
+    Kaplan-Meier survival curves) -- deliberately conservative, since it's
+    screening genome-wide. A gene reported "unprognostic" here can still
+    have a real, published survival association at a more ordinary
+    significance level; see NOTES.md's HPA section for a concrete example.
+
+    11 of 20,162 gene symbols are duplicated (multiple Ensembl entries
+    sharing one symbol) -- a `.loc[gene]` lookup for one of those returns
+    more than one row. None of this project's current candidates hit one.
+    """
+    return pd.read_csv(path, sep="\t", index_col="Gene")
