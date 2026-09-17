@@ -299,6 +299,12 @@ Decided with the user, not unilaterally: average the ranks of the three **contin
 
 **Final output:** `data/processed/depmap_tnbc_final_ranked_targets.csv` — all 15 candidates with the composite rank, each contributing rank, and the safety/druggability annotations, sorted best-to-worst. This is the project's final ranked target list.
 
+### Side comparison: what if safety and druggability were scored in too?
+
+Added purely as a comparison, not a second official result — `notebooks/04_survival_analysis.ipynb`'s last section rank-averages all **five** axes instead of three, so it's visible exactly how much the ranking would shift. Safety uses the continuous `gtex_critical_tissue_max_tpm` (lower = safer = better rank, avoiding the tie-heavy 3-bucket flag); druggability uses a new 3-tier rule off HPA's `Protein class` text (FDA-approved drug target > potential drug target/membrane protein > everything else) — a much more subjective rule than the other four axes, which is itself part of the case for leaving it out of the real score.
+
+The comparison makes the earlier argument concrete: **`LY6E` — the one candidate with real survival significance — drops from 2nd to a tie for 5th**, purely because of a safety penalty likely driven by a whole-blood immune-cell artifact rather than true risk. **`HPRT1` and `CREB3L4` jump into the top tier mainly because of tractability** (`HPRT1` is already an FDA-approved drug target despite having the *worst* essentiality rank of all 15) rather than disease evidence — a known, general risk of folding tractability into a discovery-stage score: it can reward "already easy to drug" over "best evidence for this disease." `KIF2C` does rise too, but for a better reason — a genuinely very low critical-tissue safety profile, consistent with (not contradicting) its existing literature support. `IFI6` stays #1 either way. Saved to `data/processed/depmap_tnbc_5axis_comparison.csv`, kept separate from the primary result file.
+
 **Week 4 outcome:** Complete. Kaplan-Meier and Cox survival analysis, plus a composite score combining essentiality, tumor selectivity, and survival (safety/druggability as annotations), producing a final ranked list of the 15 candidates. `LY6E` has the strongest individual statistical evidence; `IFI6` ranks first under equal-weighted rank-averaging because it's consistently solid across all three axes rather than a standout on one.
 
 ## Week 5: Explain and polish the result
