@@ -305,6 +305,53 @@ Added purely as a comparison, not a second official result — `notebooks/04_sur
 
 The comparison makes the earlier argument concrete: **`LY6E` — the one candidate with real survival significance — drops from 2nd to a tie for 5th**, purely because of a safety penalty likely driven by a whole-blood immune-cell artifact rather than true risk. **`HPRT1` and `CREB3L4` jump into the top tier mainly because of tractability** (`HPRT1` is already an FDA-approved drug target despite having the *worst* essentiality rank of all 15) rather than disease evidence — a known, general risk of folding tractability into a discovery-stage score: it can reward "already easy to drug" over "best evidence for this disease." `KIF2C` does rise too, but for a better reason — a genuinely very low critical-tissue safety profile, consistent with (not contradicting) its existing literature support. `IFI6` stays #1 either way. Saved to `data/processed/depmap_tnbc_5axis_comparison.csv`, kept separate from the primary result file.
 
+### Column glossary for the final tables
+
+Both `depmap_tnbc_final_ranked_targets.csv` and `depmap_tnbc_5axis_comparison.csv` accumulate columns from every week — worth a plain-language reference rather than re-deriving what each one means from the column name alone. Using `IFI6`'s actual row as a running example (`effect_size`=-0.10, `u_q`=0.123, `log2fc_tumor_vs_normal`=+2.32, `gtex_critical_tissue_max_tpm`=71.7, `safety_flag`="high"):
+
+**Essentiality (Week 2) — is this gene needed for TNBC cells, and is that TNBC-specific?**
+- `effect_size`: mean Chronos score in the 25 TNBC lines minus the mean in the 1,181 other lines. Chronos ≈0 = no growth effect on knockout, ≈-1 = as essential as a typical pan-essential gene. More negative = more essential in TNBC.
+- `t_p`/`u_p`: raw p-values, Welch's t-test / Mann-Whitney U (the primary test) comparing those two groups.
+- `n_tnbc`/`n_other`: group sizes for that test (25 / 1,181, same for every gene).
+- `t_q`/`u_q`: those p-values after genome-wide BH-FDR correction. `u_q` built the original shortlist.
+- `pan_cancer_mean_effect`: this gene's mean Chronos score across *every* DepMap line, any cancer type — the pan-essential/housekeeping-gene filter (excluded below -1.0).
+- `median_log2_rsem_tnbc_tumor`: median log2(RSEM+1) expression in **TNBC-only** tumor samples from TCGA — the "is this actually on in real tumors" gate (required >1.0).
+
+**Tumor selectivity (Week 3) — is it turned up in tumor vs. normal breast?**
+- `median_log2_tumor`/`median_log2_normal_breast`: median log2(RSEM+1) expression across **all** TCGA-BRCA tumor samples (1,093 — the whole BRCA cohort, deliberately not TNBC-only, for more power) vs. all matched-normal breast samples (112). Don't read "tumor" here as "TNBC tumor" the way the essentiality column above is — different population, on purpose.
+- `log2fc_tumor_vs_normal`: the difference of those two medians; positive = higher in tumor.
+- `tumor_vs_normal_p`/`_q`: Mann-Whitney p-value / BH-q-value for that comparison.
+
+**Safety (Week 3) — could hitting this gene hurt healthy tissue?**
+- `gtex_critical_tissue_max_tpm`: the highest median TPM this gene reaches across four "vital organ" GTEx tissues (heart left ventricle, heart atrial appendage, liver, whole blood as a bone-marrow proxy).
+- `safety_flag`: that number bucketed — <5 low, 5–20 moderate, >20 high (documented judgment call, not derived).
+
+**HPA annotations (Week 3) — druggability/prognostic context**
+- `Protein class`: HPA's own tags (subcellular class, known drug-target status, etc.), comma-separated when several apply.
+- `Subcellular main location`: HPA's predicted/observed compartment — can look slightly in tension with `Protein class` (e.g. tagged "membrane protein" but localized to "Mitochondria" — that class doesn't always mean *plasma* membrane).
+- `Cancer prognostics - Breast Invasive Carcinoma (TCGA)`/`(validation)`: HPA's own precomputed survival call in two cohorts, formatted `"{prognostic/unprognostic} (p-value)"`. Their bar for "prognostic" is p<0.001, stricter than ordinary significance (see the HPA section above).
+
+**Legacy rank columns from narrowing 20→15, before survival testing — a different rank system than the final ones below, easy to confuse by name**
+- `rank_essential`/`rank_tumor`: rank by `u_q`/`tumor_vs_normal_q`, computed across the **20** genes that passed the log2fc>0 filter (not these 15) — only ever used to pick which 15 genes got survival-tested.
+- `combined_rank`: the plain sum `rank_essential + rank_tumor` — what actually picked the top 15. Fully superseded by `composite_rank` below.
+
+**Survival (Week 4)**
+- `n_patients`: how many of the 142 evaluable patients had a usable value for that specific test (sometimes 139 for Cox, if age/stage was missing).
+- `logrank_p`/`logrank_q`: Kaplan-Meier median-split log-rank test, raw and FDR-corrected.
+- `hazard_ratio`/`cox_p`: unadjusted Cox regression hazard ratio (per 1-unit log2-expression increase) and its p-value; HR>1 = higher expression, worse survival.
+- `hazard_ratio_adj`/`cox_p_adj`: the same Cox model with age and tumor stage added as covariates.
+- `cox_q`/`cox_q_adj`: BH-FDR-corrected versions, across all 15 genes. `cox_q_adj` is the project's primary survival metric.
+
+**The primary composite score (this week)**
+- `rank_essentiality`/`rank_tumor_selectivity`/`rank_survival`: rank by `u_q`/`tumor_vs_normal_q`/`cox_q_adj`, recomputed fresh across just these **15** genes (distinct from `rank_essential`/`rank_tumor` above).
+- `composite_rank`: the plain average of those three ranks. Lower = better — the project's real answer.
+
+**The 5-axis side comparison**
+- `rank_safety`: rank by `gtex_critical_tissue_max_tpm`, ascending (lower TPM = safer = better rank).
+- `druggability_tier`: 1/2/3 bucket (1 = FDA-approved drug target, 2 = potential target or membrane protein, 3 = everything else).
+- `rank_druggability`: rank of that tier (expect ties — it's a coarse 3-level scale).
+- `composite_rank_5axis`: average of all five ranks. Comparison-only, not the project's answer.
+
 **Week 4 outcome:** Complete. Kaplan-Meier and Cox survival analysis, plus a composite score combining essentiality, tumor selectivity, and survival (safety/druggability as annotations), producing a final ranked list of the 15 candidates. `LY6E` has the strongest individual statistical evidence; `IFI6` ranks first under equal-weighted rank-averaging because it's consistently solid across all three axes rather than a standout on one.
 
 ## Week 5: Explain and polish the result
