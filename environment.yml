@@ -2,7 +2,7 @@ name: target-discovery
 channels:
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.10.21
   - pip
   - pip:
       - pandas==2.3.3
@@ -11,5 +11,6 @@ dependencies:
       - matplotlib==3.10.9
       - seaborn==0.13.2
       - lifelines==0.30.0
-      - jupyter
+      - jupyter==1.1.1
+      - nbconvert==7.17.1
       - ipykernel==7.3.0

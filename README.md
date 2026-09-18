@@ -44,7 +44,8 @@ The pipeline was also checked against known biology before any candidate was tru
 ├── CLAUDE.md                                # running project log / status
 ├── case_study_research.md                   # literature + druggability research for the case studies
 ├── oncology-target-discovery-project-plan.md
-└── environment.yml                          # reproducible conda environment
+├── environment.yml                          # conda environment, every direct dependency pinned
+└── environment.lock.txt                     # full pip freeze (incl. transitive deps), from macOS
 ```
 
 ## Setup
@@ -54,6 +55,8 @@ conda activate target-discovery
 python scripts/download_tcga.py   # TCGA-BRCA expression + clinical
 python scripts/download_gtex.py   # GTEx v11 median TPM
 ```
+`environment.yml` pins every direct dependency to an exact version. `environment.lock.txt` is the full `pip freeze` of the environment the results were produced in (macOS, Python 3.10.21); use it if you need identical transitive versions, though a few packages in it are macOS-only.
+
 Two datasets are manual downloads. DepMap blocks scripted requests: download `Model Data.csv` and `CRISPR Gene Effect.csv` (release 26Q1) from the portal's Custom Downloads into `data/raw/depmap/`. For the Human Protein Atlas, download `proteinatlas.tsv.zip` from proteinatlas.org/download and unzip it into `data/raw/hpa/`.
 
 Then run the four notebooks in order. Each one has its kernel saved in its metadata, so it runs under the `target-discovery` environment. If `conda activate` doesn't take effect in your shell, call the environment's Python by its full path.
