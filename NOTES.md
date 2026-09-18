@@ -369,7 +369,8 @@ Both `depmap_tnbc_final_ranked_targets.csv` and `depmap_tnbc_5axis_comparison.cs
 - [ ] Describe the next experimental validation step.
 - [ ] Write the README using the project story and results recorded here.
 - [ ] Add a summary visualization.
-- [ ] Pin the environment and clean the notebooks.
+- [x] Clean the notebooks: added an inputs/outputs/run-order block to each, plus short explanations after result cells that had none. Also fixed a real reproducibility gap: `depmap_tnbc_week4_candidates15.csv` was read by notebook 04 but no notebook code produced it (it had been built by hand), so notebook 04 now regenerates it in a new first section using the documented rule; the regenerated file matches the committed one exactly (same 15 genes, same order, ranks identical). Notebook 04 re-executed clean under the `target-discovery` kernel; the other three only gained markdown, so no re-run was needed.
+- [ ] Pin the environment.
 - [ ] Build the optional Streamlit explorer if time allows.
 
 ### Case studies: four targets, four different kinds of evidence
