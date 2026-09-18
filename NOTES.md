@@ -372,4 +372,63 @@ Both `depmap_tnbc_final_ranked_targets.csv` and `depmap_tnbc_5axis_comparison.cs
 - [ ] Pin the environment and clean the notebooks.
 - [ ] Build the optional Streamlit explorer if time allows.
 
+### Case studies: four targets, four different kinds of evidence
+
+Drafted so it can move into the README nearly as-is. Sources and links are in `case_study_research.md`. Every claim here is a computational prioritization for follow-up experiments, not a validated target. The "Next experimental step" lines are left blank on purpose: those are meant to be written in your own words, from your bench experience.
+
+**The four at a glance** (numbers from `depmap_tnbc_final_ranked_targets.csv`; ranks are out of the 15 Week 4 candidates)
+
+| | `IFI6` | `LY6E` | `HPRT1` | `KIF2C` |
+|---|---|---|---|---|
+| Composite rank | 1 | 2 | 5 | 9 |
+| Median Chronos effect, 25 TNBC lines | -0.046 | -0.037 | -0.030 | **-0.487** |
+| Tumor vs. normal breast (log2 fold change) | +2.32 | +0.53 | +0.88 | **+3.35** |
+| Adjusted survival HR (Cox q) | 1.16 (0.79) | **1.74 (0.036)** | 0.69 (0.79) | 0.95 (0.92) |
+| Highest critical-tissue expression (GTEx) | 72 TPM, high | 176 TPM, high | 16 TPM, moderate | **1.8 TPM, low** |
+| Where the protein sits (HPA) | Mitochondria | Membrane | Cytosol (enzyme) | Nucleus and centrosome |
+| Most tractable route | None known | Surface (antibody-type) | Repurposing / combination | Small molecule |
+
+The point of choosing these four is that no single one is a clean winner. Each one shows a different way a candidate can look good, and a different way it can fall short.
+
+#### `IFI6`: best composite score, and an unresolved gap with the published literature
+
+- **In this project:** it is never the best on any one axis (essentiality 7th, tumor selectivity 3rd, survival 3rd), but it is consistently good, and rank-averaging rewards that. Its tumor overexpression is large (+2.32 log2 fold change, q=7e-37).
+- **What it is:** an interferon-stimulated gene whose protein sits in the *inner mitochondrial membrane*. It is anti-apoptotic and keeps mitochondrial ROS low. HPA's generic "membrane protein" label is misleading here, because it is not on the cell surface.
+- **The gap:** the largest published breast-cancer analysis (*Sci Rep* 2025) found `IFI6` prognostic in ER+, PR+, HER2+ and node-positive disease, and explicitly found no significant association with TNBC. `IFI6` is also a direct estrogen-signalling target, which is by definition not the TNBC setting. This project's evidence is TNBC-specific and runs the opposite way. The two are not strictly contradictory: the paper is correlational bulk RNA-seq across subtypes, while this project adds an independent CRISPR-dependency axis and a TNBC-only comparison. Still, it is a real, named disagreement, and it is the reason `IFI6` should be described as "top-ranked by this pipeline" rather than "strong candidate."
+- **Weak points inside the project:** its absolute dependency is weak (median Chronos -0.046, only 4% of TNBC lines dependent), it has no significant survival signal (q=0.79), and it carries a "high" safety flag.
+- **Druggability:** no approved or clinical-stage `IFI6` drug found. A mitochondrial inner-membrane protein rules out a simple antibody approach. One paper speculates about combining it with PD-1/PD-L1 blockade, and flags that as untested.
+- **Next experimental step (draft, edit in your own voice):** test the subtype gap directly. Run IHC on a tissue microarray that includes TNBC and ER+/HER2+ cases to check `IFI6` protein levels and its mitochondrial localization. In parallel, knock down `IFI6` (siRNA or CRISPR, confirmed by western blot) in TNBC lines versus ER+ lines and measure viability, mitochondrial ROS (e.g. MitoSOX) and apoptosis. If the knockdown effect is not larger in TNBC, the published subtype pattern wins over this pipeline's result.
+
+#### `LY6E`: the only survival result that holds up, and the clearest case of independently recovering known biology
+
+- **In this project:** it has the only Cox association that survives FDR correction (adjusted HR 1.74, p=0.0024, q=0.036), and adjusting for age and stage *strengthened* it, which is a good sign against confounding. Tumor overexpression is real but modest (+0.53 log2 fold change, q=6e-8), which is why it ranks only 10th on tumor selectivity and ends up 2nd overall.
+- **Independent support:** a 2025 study using entirely different methods (RNA-seq, protein, xenograft) described `LY6E` as a TNBC-specific theranostic target, with high membrane expression in TNBC lines and low expression in normal breast epithelium. It is the cleanest case here of this pipeline landing on something already reported by other means.
+- **Druggability:** it is the only one of the four that is a genuinely surface-accessible membrane protein, so it has the most conventional tractability (antibody-type approaches).
+- **Caveat carried from Week 3:** whole-blood expression is high (176 TPM), so it gets a "high" safety flag. It is an interferon-stimulated gene expressed in circulating immune cells, so this is plausibly a blood-cell artifact and not a real on-target liability. That is a hypothesis; it is annotated, not resolved. The 5-axis comparison shows the cost: with safety scored in, it falls from 2nd to a tie for 5th.
+- **Weak points:** absolute dependency is weak (median Chronos -0.037), and the survival result comes from only 21 events in 142 patients.
+- **Next experimental step (draft, edit in your own voice):** first resolve the safety question. Use flow cytometry for surface `LY6E` on TNBC lines, normal mammary epithelial cells and peripheral blood cells, to see whether the whole-blood signal is real on-target expression or an immune-cell artifact. Then run IHC on a TNBC tissue microarray with outcome data to check the survival association at the protein level, and an antibody internalization assay to judge whether an antibody-drug conjugate is plausible.
+
+#### `HPRT1`: a tractability label that overstates what is actually available
+
+- **In this project:** it ranks 5th overall on strong tumor overexpression (+0.88, q=5e-41) but has the *worst* essentiality rank of all 15, and TNBC lines are not measurably dependent on it (median Chronos -0.030). Its survival hazard ratio is below 1 (0.69) and not significant.
+- **Correcting the shorthand:** HPA labels it an "FDA approved drug target." An earlier note in this project read that as "allopurinol's target," which is wrong (allopurinol inhibits xanthine oxidase). What is true is that `HPRT1` is the enzyme that *activates* the thiopurine prodrugs 6-mercaptopurine, 6-thioguanine and azathioprine. Those drugs need it to work, and no approved drug inhibits `HPRT1` itself. So the label overstates tractability. That is the case-study lesson: check what a label actually means before trusting it as a score.
+- **Literature:** the most TNBC-specific hit of the four. A 2024 pan-cancer analysis reported `HPRT1` RNA elevated "particularly in basal cells and triple-negative breast cancer," validated in an independent TNBC dataset. There is also mechanistic oncogenic evidence in other cancers (a HIF-1α–`HPRT1` axis in EGFR-mutant lung adenocarcinoma).
+- **Reconciling weak dependency with real biology:** a 2024 *Cell Metabolism* paper found `HPRT1` becomes conditionally essential when the mitochondrial electron transport chain is blocked, because cells then rely on purine salvage. A standard, unperturbed DepMap screen would not show that. It is a plausible explanation, and it is a hypothesis this project's data cannot test.
+- **Druggability:** a repurposing or combination story (thiopurine pharmacology, or pairing with ETC inhibitors), not an off-the-shelf inhibitor.
+- **Next experimental step (draft, edit in your own voice):** test the conditional-essentiality hypothesis. Knock out or knock down `HPRT1` in TNBC lines, with and without an electron-transport-chain inhibitor (e.g. rotenone or oligomycin), and measure viability. A separate arm can measure sensitivity to 6-thioguanine, which needs `HPRT1` for activation, as the repurposing readout. If loss of `HPRT1` only matters under ETC stress, the weak DepMap dependency is explained.
+
+#### `KIF2C`: the strongest single-gene case, and a lesson about what a composite score hides
+
+- **In this project:** ranks only 9th on the composite, yet it has the strongest measured dependency of any candidate (median Chronos -0.487, 80% of TNBC lines dependent at ≤ -0.30, versus ≤12% for the other three), the strongest tumor overexpression (+3.35 log2 fold change, q=3e-58), and the lowest critical-tissue expression (1.8 TPM, "low" safety flag).
+- **Why the composite undersells it:** the Week 2 essentiality test measured *differential* dependency (TNBC vs. other lineages), not absolute dependency, so it never credited `KIF2C` for how strongly TNBC lines actually need it. The survival axis then ranks it 13th (HR 0.95, p=0.72). This is a power limit, not a negative finding: 21 events cannot detect a pooled multi-cohort association, and HPA's own validation cohort (p=0.016) points the same way, below HPA's strict genome-wide p<0.001 bar but not null. The literature independently reports breast-cancer overexpression and poor prognosis.
+- **Druggability:** a nuclear/centrosomal kinesin motor protein, so no surface or antibody route. The precedent is a small-molecule one, since inhibitors of another kinesin (KIF11/Eg5) reached clinical trials.
+- **Next experimental step (draft, edit in your own voice):** confirm the dependency directly. Knock down `KIF2C` in TNBC lines versus non-TNBC lines and a non-transformed mammary line (e.g. MCF10A), confirm knockdown by western blot, and measure viability. Use immunofluorescence to look for mitotic defects (lagging chromosomes, spindle abnormalities), since it is a mitotic kinesin. IHC on a TNBC tissue microarray would check protein overexpression, which the survival data here was too underpowered to test.
+
+#### What the four together say
+
+1. **Rank depends on the axes chosen.** The composite ranks `IFI6` first and `KIF2C` ninth, but on measured dependency, tumor selectivity and safety, `KIF2C` is the best of the four. The composite is an ordering to reason from, not a verdict.
+2. **Only one axis found anything statistically firm** (`LY6E` survival), and it comes from a small cohort. Everything else is convergent-evidence reasoning.
+3. **Two of the four have real gaps with the outside literature** (`IFI6` on TNBC subtype, `HPRT1` on dependency), and both are stated above instead of smoothed over.
+4. **Labels need checking.** HPA's "membrane protein" for `IFI6` and "FDA approved drug target" for `HPRT1` both overstate tractability.
+
 **Week 5 outcome:** A reproducible portfolio project with a clear scientific narrative and defensible conclusions.
