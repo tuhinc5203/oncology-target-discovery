@@ -43,7 +43,6 @@ The pipeline was also checked against known biology before any candidate was tru
 ├── NOTES.md                                 # decisions, problems found and fixed, case studies
 ├── CLAUDE.md                                # running project log / status
 ├── case_study_research.md                   # literature + druggability research for the case studies
-├── oncology-target-discovery-project-plan.md
 ├── environment.yml                          # conda environment, every direct dependency pinned
 └── environment.lock.txt                     # full pip freeze (incl. transitive deps), from macOS
 ```

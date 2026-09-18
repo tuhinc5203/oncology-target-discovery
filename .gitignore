@@ -13,3 +13,6 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# Local-only project plan (kept on disk, not published)
+oncology-target-discovery-project-plan.md

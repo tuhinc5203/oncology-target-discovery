@@ -5,7 +5,7 @@ This file is internal working context for the coding assistant. Keep it concise,
 ## Workspace state
 
 - Workspace: `oncology-target-discovery`
-- Current artifacts: `oncology-target-discovery-project-plan.md`, `NOTES.md`, `CLAUDE.md`, `case_study_research.md`, `environment.yml`, `.gitignore`, `src/data_utils.py`, `scripts/download_tcga.py`, `scripts/download_gtex.py`.
+- Current artifacts: `NOTES.md`, `CLAUDE.md`, `case_study_research.md`, `environment.yml`, `.gitignore`, `src/data_utils.py`, `scripts/download_tcga.py`, `scripts/download_gtex.py`.
 - Git repository initialized (branch `main`) and pushed to `https://github.com/tuhinc5203/oncology-target-discovery` (`origin/main` tracked). Safe to use normal git commands, including push.
 - Local conda environment `target-discovery` (Python 3.10) created with pandas, numpy, scipy, matplotlib, seaborn, lifelines, jupyter, ipykernel. Jupyter kernel registered as "Python (target-discovery)". Exact versions pinned in `environment.yml`.
 - Directory layout: `data/raw/{depmap,tcga,gtex,hpa}/` (untracked except `.gitkeep`, for original downloads), `data/processed/` (untracked except `.gitkeep`, for cleaned/intermediate data), `notebooks/`, `src/`, `scripts/`.
@@ -17,7 +17,7 @@ This file is internal working context for the coding assistant. Keep it concise,
 ## User-facing source of truth
 
 - `NOTES.md` is for the user: plain-language catch-up, weekly tasks, decisions, outcomes, and material that can later become `README.md`.
-- `oncology-target-discovery-project-plan.md` is the detailed reference plan.
+- `oncology-target-discovery-project-plan.md` is the detailed reference plan. It is a local-only working file: untracked and gitignored, deliberately not in the public repo (user's decision). Don't `git add` it or link to it from the README.
 - Keep implementation details, unresolved choices, and assistant resume state here instead of cluttering `NOTES.md`.
 
 ## Scientific scope
